@@ -1,0 +1,21 @@
+{
+  "name": "lamba-digital-services-platform",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Lamba Government Digital Services Platform",
+  "scripts": {
+    "start": "./start.sh",
+    "compose:up": "docker compose -f docker-compose.lite.yml up --build -d",
+    "compose:down": "docker compose down",
+    "db:seed": "npm --prefix platform/db run seed",
+    "generate:openapi": "node scripts/generate-openapi.js",
+    "generate:sbom": "node scripts/generate-sbom.js",
+    "generate:artifacts": "node scripts/generate-openapi.js && node scripts/generate-sbom.js",
+    "validate:events": "node scripts/validate-event-schemas.js",
+    "validate:identity": "node scripts/validate-identity-config.js",
+    "validate:openapi": "node scripts/validate-openapi.js",
+    "validate:search": "node scripts/validate-search-mappings.js",
+    "validate:legacy": "node scripts/validate-legacy-service.js",
+    "validate:all": "npm run validate:events && npm run validate:identity && npm run validate:openapi && npm run validate:search && npm run validate:legacy"
+  }
+}
