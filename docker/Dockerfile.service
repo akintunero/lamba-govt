@@ -1,0 +1,28 @@
+FROM node:20-alpine
+
+ARG SERVICE_DIR=services/auth-service
+
+WORKDIR /app/platform/db
+COPY platform/db/package.json platform/db/schema.prisma ./
+RUN npm install && npx prisma generate
+
+WORKDIR /app/platform/common
+COPY platform/common/ ./
+RUN npm install
+
+WORKDIR /app/service
+COPY ${SERVICE_DIR}/package.json ./
+RUN npm install
+COPY ${SERVICE_DIR}/src ./src
+
+ENV NODE_PATH=/app/platform/db/node_modules:/app/platform/common/node_modules
+
+EXPOSE 3000
+
+RUN apk del curl wget netcat-openbsd ping nmap apk-tools 2>/dev/null || true; rm -rf /var/cache/apk/*
+
+RUN addgroup -S ctf && adduser -S -G ctf ctfuser && chown -R ctfuser:ctf /app
+
+USER ctfuser
+
+CMD ["node", "src/index.js"]
