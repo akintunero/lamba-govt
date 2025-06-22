@@ -1,0 +1,13 @@
+FROM node:20-alpine
+
+WORKDIR /app/platform/db
+COPY platform/db/ ./
+RUN npm install && npx prisma generate
+
+RUN apk del curl wget netcat-openbsd ping nmap apk-tools 2>/dev/null || true; rm -rf /var/cache/apk/*
+
+RUN addgroup -S ctf && adduser -S -G ctf ctfuser && chown -R ctfuser:ctf /app
+
+USER ctfuser
+
+CMD ["sh", "-c", "npx prisma db push && node seed.js"]
