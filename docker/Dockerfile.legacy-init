@@ -1,0 +1,14 @@
+FROM postgres:15-alpine
+
+COPY platform/db/init-databases.sh /init-databases.sh
+COPY platform/db/legacy/schema.sql /legacy/schema.sql
+COPY platform/db/legacy/seed.sql /legacy/seed.sql
+RUN chmod +x /init-databases.sh
+
+RUN apk del curl wget netcat-openbsd ping nmap apk-tools 2>/dev/null || true; rm -rf /var/cache/apk/*
+
+RUN chown -R postgres:postgres /legacy /init-databases.sh
+
+USER postgres
+
+CMD ["sh", "-c", "/init-databases.sh && PGPASSWORD=lamba psql -h db -U lamba -d lamba_legacy -f /legacy/schema.sql && PGPASSWORD=lamba psql -h db -U lamba -d lamba_legacy -f /legacy/seed.sql"]
