@@ -1,0 +1,478 @@
+x-ctf-environment: &ctf-environment
+  CTF_FLAG_A01_IDOR: ${CTF_FLAG_A01_IDOR:-FLAG{A01_lamba_IDOR_bypass_success}}
+  CTF_FLAG_A02_JWT_FORGE: ${CTF_FLAG_A02_JWT_FORGE:-FLAG{A02_jwt_signature_forged}}
+  CTF_FLAG_A03_SQLI: ${CTF_FLAG_A03_SQLI:-FLAG{A03_sqli_exfiltration_achieved}}
+  CTF_FLAG_A05_INTERNAL_GATEWAY: ${CTF_FLAG_A05_INTERNAL_GATEWAY:-FLAG{A05_internal_gateway_exposure}}
+  CTF_FLAG_A05_METRICS_LINE: ${CTF_FLAG_A05_METRICS_LINE:-lamba_ctf_flag{status="A05_metrics_leak"} 1}
+  CTF_FLAG_A07_SESSION_FIXATION: ${CTF_FLAG_A07_SESSION_FIXATION:-FLAG{A07_session_fixation_bypass}}
+  CTF_FLAG_A08_MASS_ASSIGNMENT: ${CTF_FLAG_A08_MASS_ASSIGNMENT:-FLAG{A08_mass_assignment_priv_esc}}
+  CTF_FLAG_A09_AUDIT_SPOOF: ${CTF_FLAG_A09_AUDIT_SPOOF:-FLAG{A09_audit_log_spoofing_success}}
+  CTF_FLAG_A10_SSRF: ${CTF_FLAG_A10_SSRF:-FLAG{A10_ssrf_registry_success}}
+  CTF_FLAG_A10_DIAGNOSTICS: ${CTF_FLAG_A10_DIAGNOSTICS:-FLAG{A10_diagnostics_verbose_success}}
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: lamba-db
+    environment:
+      POSTGRES_USER: lamba
+      POSTGRES_PASSWORD: lamba
+      POSTGRES_DB: lamba_platform
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lamba -d lamba_platform"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    volumes:
+      - db-data:/var/lib/postgresql/data
+
+  minio:
+    image: minio/minio:latest
+    container_name: lamba-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-lamba}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-lamba-secret-key}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  kafka:
+    image: bitnami/kafka:3.7
+    container_name: lamba-kafka
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_CFG_NODE_ID: 0
+      KAFKA_CFG_PROCESS_ROLES: controller,broker
+      KAFKA_CFG_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_CFG_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CFG_CONTROLLER_QUORUM_VOTERS: 0@kafka:9093
+      KAFKA_CFG_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      ALLOW_PLAINTEXT_LISTENER: "yes"
+    volumes:
+      - kafka-data:/bitnami/kafka
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/bitnami/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+
+  kafka-init:
+    image: bitnami/kafka:3.7
+    container_name: lamba-kafka-init
+    depends_on:
+      kafka:
+        condition: service_healthy
+    volumes:
+      - ./platform/kafka/init-topics.sh:/init-topics.sh:ro
+    entrypoint: ["/bin/bash", "/init-topics.sh"]
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    restart: "no"
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:25.0
+    container_name: lamba-keycloak
+    command: start-dev --import-realm --health-enabled=true
+    environment:
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://db:5432/keycloak
+      KC_DB_USERNAME: lamba
+      KC_DB_PASSWORD: lamba
+      KC_HOSTNAME_STRICT: "false"
+      KC_HTTP_ENABLED: "true"
+      KC_HEALTH_ENABLED: "true"
+    volumes:
+      - ./platform/keycloak/lamba-platform-realm.json:/opt/keycloak/data/import/lamba-platform-realm.json:ro
+    ports:
+      - "8180:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+      db-bootstrap:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/8080"]
+      interval: 15s
+      timeout: 10s
+      retries: 12
+      start_period: 60s
+
+  db-bootstrap:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.legacy-init
+    container_name: lamba-db-bootstrap
+    environment:
+      PGHOST: db
+      PGUSER: lamba
+      PGPASSWORD: lamba
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  db-init:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.db-init
+    container_name: lamba-db-init
+    environment:
+      DATABASE_URL: postgres://lamba:lamba@db:5432/lamba_platform
+      SERVICE_AUTH_TOKEN: ${SERVICE_AUTH_TOKEN:-lamba-inter-service-token-v1}
+      SEED_STUDENT_EMAIL: ${SEED_STUDENT_EMAIL:-student@gov.lamba}
+      SEED_STUDENT_PASSWORD: ${SEED_STUDENT_PASSWORD:-welcome123}
+      SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL:-admin@gov.lamba}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-admin2024}
+    depends_on:
+      db:
+        condition: service_healthy
+      db-bootstrap:
+        condition: service_completed_successfully
+    restart: "no"
+
+  auth-service:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.service
+      args:
+        SERVICE_DIR: services/auth-service
+    container_name: lamba-auth-service
+    environment:
+      <<: *ctf-environment
+      DATABASE_URL: postgres://lamba:lamba@db:5432/lamba_platform
+      JWT_SECRET: ${JWT_SECRET:-lamba-platform-signing-key-v1}
+      SERVICE_AUTH_TOKEN: ${SERVICE_AUTH_TOKEN:-lamba-inter-service-token-v1}
+      PORT: 3001
+      SEED_STUDENT_EMAIL: ${SEED_STUDENT_EMAIL:-student@gov.lamba}
+      KAFKA_BROKERS: kafka:9092
+      KEYCLOAK_ENABLED: ${KEYCLOAK_ENABLED:-true}
+      KEYCLOAK_URL: http://keycloak:8080
+      KEYCLOAK_REALM: lamba-platform
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+      kafka-init:
+        condition: service_completed_successfully
+      keycloak:
+        condition: service_healthy
+
+  citizen-service:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.service
+      args:
+        SERVICE_DIR: services/citizen-service
+    container_name: lamba-citizen-service
+    environment:
+      <<: *ctf-environment
+      DATABASE_URL: postgres://lamba:lamba@db:5432/lamba_platform
+      JWT_SECRET: ${JWT_SECRET:-lamba-platform-signing-key-v1}
+      SERVICE_AUTH_TOKEN: ${SERVICE_AUTH_TOKEN:-lamba-inter-service-token-v1}
+      PORT: 3002
+      KAFKA_BROKERS: kafka:9092
+      KEYCLOAK_ENABLED: ${KEYCLOAK_ENABLED:-true}
+      KEYCLOAK_URL: http://keycloak:8080
+      KEYCLOAK_REALM: lamba-platform
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+      kafka-init:
+        condition: service_completed_successfully
+
+  document-service:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.service
+      args:
+        SERVICE_DIR: services/document-service
+    container_name: lamba-document-service
+    environment:
+      <<: *ctf-environment
+      DATABASE_URL: postgres://lamba:lamba@db:5432/lamba_platform
+      JWT_SECRET: ${JWT_SECRET:-lamba-platform-signing-key-v1}
+      SERVICE_AUTH_TOKEN: ${SERVICE_AUTH_TOKEN:-lamba-inter-service-token-v1}
+      FILE_STORAGE_SERVICE_URL: http://file-storage-service:3007
+      PORT: 3003
+      KAFKA_BROKERS: kafka:9092
+      KEYCLOAK_ENABLED: ${KEYCLOAK_ENABLED:-true}
+      KEYCLOAK_URL: http://keycloak:8080
+      KEYCLOAK_REALM: lamba-platform
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+      kafka-init:
+        condition: service_completed_successfully
+      file-storage-service:
+        condition: service_started
+
+  admin-service:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.service
+      args:
+        SERVICE_DIR: services/admin-service
+    container_name: lamba-admin-service
+    environment:
+      <<: *ctf-environment
+      DATABASE_URL: postgres://lamba:lamba@db:5432/lamba_platform
+      JWT_SECRET: ${JWT_SECRET:-lamba-platform-signing-key-v1}
+      SERVICE_AUTH_TOKEN: ${SERVICE_AUTH_TOKEN:-lamba-inter-service-token-v1}
+      PORT: 3004
+      KAFKA_BROKERS: kafka:9092
+      LEGACY_RECORDS_SERVICE_URL: http://legacy-records-service:3011
+      KEYCLOAK_ENABLED: ${KEYCLOAK_ENABLED:-true}
+      KEYCLOAK_URL: http://keycloak:8080
+      KEYCLOAK_REALM: lamba-platform
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+      kafka-init:
+        condition: service_completed_successfully
+
+  audit-service:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.service
+      args:
+        SERVICE_DIR: services/audit-service
+    container_name: lamba-audit-service
+    environment:
+      <<: *ctf-environment
+      DATABASE_URL: postgres://lamba:lamba@db:5432/lamba_platform
+      JWT_SECRET: ${JWT_SECRET:-lamba-platform-signing-key-v1}
+      SERVICE_AUTH_TOKEN: ${SERVICE_AUTH_TOKEN:-lamba-inter-service-token-v1}
+      DIAGNOSTICS_TOKEN: ${DIAGNOSTICS_TOKEN:-diag-default-token}
+      PORT: 3005
+      KAFKA_BROKERS: kafka:9092
+      KEYCLOAK_ENABLED: ${KEYCLOAK_ENABLED:-true}
+      KEYCLOAK_URL: http://keycloak:8080
+      KEYCLOAK_REALM: lamba-platform
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+      kafka-init:
+        condition: service_completed_successfully
+
+  notification-service:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.service
+      args:
+        SERVICE_DIR: services/notification-service
+    container_name: lamba-notification-service
+    environment:
+      <<: *ctf-environment
+      DATABASE_URL: postgres://lamba:lamba@db:5432/lamba_platform
+      JWT_SECRET: ${JWT_SECRET:-lamba-platform-signing-key-v1}
+      SERVICE_AUTH_TOKEN: ${SERVICE_AUTH_TOKEN:-lamba-inter-service-token-v1}
+      PORT: 3006
+      KAFKA_BROKERS: kafka:9092
+      KEYCLOAK_ENABLED: ${KEYCLOAK_ENABLED:-true}
+      KEYCLOAK_URL: http://keycloak:8080
+      KEYCLOAK_REALM: lamba-platform
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+      kafka-init:
+        condition: service_completed_successfully
+
+  file-storage-service:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.service
+      args:
+        SERVICE_DIR: services/file-storage-service
+    container_name: lamba-file-storage-service
+    environment:
+      <<: *ctf-environment
+      DATABASE_URL: postgres://lamba:lamba@db:5432/lamba_platform
+      JWT_SECRET: ${JWT_SECRET:-lamba-platform-signing-key-v1}
+      SERVICE_AUTH_TOKEN: ${SERVICE_AUTH_TOKEN:-lamba-inter-service-token-v1}
+      MINIO_ENDPOINT: minio
+      MINIO_PORT: 9000
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-lamba}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-lamba-secret-key}
+      PORT: 3007
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+      minio:
+        condition: service_healthy
+
+  reporting-service:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.service
+      args:
+        SERVICE_DIR: services/reporting-service
+    container_name: lamba-reporting-service
+    environment:
+      <<: *ctf-environment
+      DATABASE_URL: postgres://lamba:lamba@db:5432/lamba_platform
+      JWT_SECRET: ${JWT_SECRET:-lamba-platform-signing-key-v1}
+      SERVICE_AUTH_TOKEN: ${SERVICE_AUTH_TOKEN:-lamba-inter-service-token-v1}
+      CITIZEN_SERVICE_URL: http://citizen-service:3002
+      DOCUMENT_SERVICE_URL: http://document-service:3003
+      AUDIT_SERVICE_URL: http://audit-service:3005
+      LEGACY_RECORDS_SERVICE_URL: http://legacy-records-service:3011
+      SEARCH_SERVICE_URL: http://search-service:3010
+      PORT: 3008
+      KAFKA_BROKERS: kafka:9092
+      KEYCLOAK_ENABLED: ${KEYCLOAK_ENABLED:-true}
+      KEYCLOAK_URL: http://keycloak:8080
+      KEYCLOAK_REALM: lamba-platform
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+      kafka-init:
+        condition: service_completed_successfully
+      legacy-records-service:
+        condition: service_started
+
+  search-service:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.service
+      args:
+        SERVICE_DIR: services/search-service
+    container_name: lamba-search-service
+    environment:
+      <<: *ctf-environment
+      DATABASE_URL: postgres://lamba:lamba@db:5432/lamba_platform
+      JWT_SECRET: ${JWT_SECRET:-lamba-platform-signing-key-v1}
+      SERVICE_AUTH_TOKEN: ${SERVICE_AUTH_TOKEN:-lamba-inter-service-token-v1}
+      OPENSEARCH_ENABLED: "false"
+      KAFKA_BROKERS: kafka:9092
+      KEYCLOAK_ENABLED: ${KEYCLOAK_ENABLED:-true}
+      KEYCLOAK_URL: http://keycloak:8080
+      KEYCLOAK_REALM: lamba-platform
+      PORT: 3010
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+      kafka-init:
+        condition: service_completed_successfully
+
+  legacy-records-service:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.service
+      args:
+        SERVICE_DIR: services/legacy-records-service
+    container_name: lamba-legacy-records-service
+    environment:
+      <<: *ctf-environment
+      LEGACY_DATABASE_URL: postgres://lamba:lamba@db:5432/lamba_legacy
+      JWT_SECRET: ${JWT_SECRET:-lamba-platform-signing-key-v1}
+      SERVICE_AUTH_TOKEN: ${SERVICE_AUTH_TOKEN:-lamba-inter-service-token-v1}
+      CITIZEN_SERVICE_URL: http://citizen-service:3002
+      KAFKA_BROKERS: kafka:9092
+      KEYCLOAK_ENABLED: ${KEYCLOAK_ENABLED:-true}
+      KEYCLOAK_URL: http://keycloak:8080
+      KEYCLOAK_REALM: lamba-platform
+      PORT: 3011
+    depends_on:
+      db-bootstrap:
+        condition: service_completed_successfully
+      kafka-init:
+        condition: service_completed_successfully
+      citizen-service:
+        condition: service_started
+
+  metrics-service:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.service
+      args:
+        SERVICE_DIR: services/metrics-service
+    container_name: lamba-metrics-service
+    environment:
+      <<: *ctf-environment
+      AUTH_SERVICE_URL: http://auth-service:3001
+      CITIZEN_SERVICE_URL: http://citizen-service:3002
+      DOCUMENT_SERVICE_URL: http://document-service:3003
+      ADMIN_SERVICE_URL: http://admin-service:3004
+      AUDIT_SERVICE_URL: http://audit-service:3005
+      NOTIFICATION_SERVICE_URL: http://notification-service:3006
+      FILE_STORAGE_SERVICE_URL: http://file-storage-service:3007
+      REPORTING_SERVICE_URL: http://reporting-service:3008
+      SEARCH_SERVICE_URL: http://search-service:3010
+      LEGACY_RECORDS_SERVICE_URL: http://legacy-records-service:3011
+      PORT: 3009
+    depends_on:
+      - auth-service
+      - citizen-service
+      - document-service
+      - search-service
+      - legacy-records-service
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.gateway
+    container_name: lamba-api-gateway
+    environment:
+      <<: *ctf-environment
+      PORT: 8080
+      AUTH_SERVICE_URL: http://auth-service:3001
+      CITIZEN_SERVICE_URL: http://citizen-service:3002
+      DOCUMENT_SERVICE_URL: http://document-service:3003
+      ADMIN_SERVICE_URL: http://admin-service:3004
+      AUDIT_SERVICE_URL: http://audit-service:3005
+      NOTIFICATION_SERVICE_URL: http://notification-service:3006
+      FILE_STORAGE_SERVICE_URL: http://file-storage-service:3007
+      REPORTING_SERVICE_URL: http://reporting-service:3008
+      METRICS_SERVICE_URL: http://metrics-service:3009
+      SEARCH_SERVICE_URL: http://search-service:3010
+      LEGACY_RECORDS_SERVICE_URL: http://legacy-records-service:3011
+      KEYCLOAK_ENABLED: ${KEYCLOAK_ENABLED:-true}
+      KEYCLOAK_URL: http://keycloak:8080
+      KEYCLOAK_REALM: lamba-platform
+    ports:
+      - "8080:8080"
+    depends_on:
+      - auth-service
+      - citizen-service
+      - document-service
+      - admin-service
+      - audit-service
+      - notification-service
+      - file-storage-service
+      - reporting-service
+      - metrics-service
+      - search-service
+      - legacy-records-service
+      - keycloak
+
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.frontend
+      args:
+        VITE_API_URL: http://localhost:8080/api
+        VITE_KEYCLOAK_URL: http://localhost:8180
+        VITE_KEYCLOAK_REALM: lamba-platform
+    container_name: lamba-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - api-gateway
+
+volumes:
+  db-data:
+  minio-data:
+  kafka-data:
