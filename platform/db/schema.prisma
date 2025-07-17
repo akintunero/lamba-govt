@@ -1,0 +1,222 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Permission {
+  id          Int              @id @default(autoincrement())
+  name        String           @unique
+  description String
+  roles       RolePermission[]
+}
+
+model Role {
+  id          Int              @id @default(autoincrement())
+  name        String           @unique
+  permissions String
+  users       User[]
+  grants      RolePermission[]
+}
+
+model RolePermission {
+  roleId       Int
+  permissionId Int
+  role         Role       @relation(fields: [roleId], references: [id])
+  permission   Permission @relation(fields: [permissionId], references: [id])
+
+  @@id([roleId, permissionId])
+}
+
+model Ministry {
+  id        Int        @id @default(autoincrement())
+  name      String
+  acronym   String
+  employees Employee[]
+  documents Document[]
+}
+
+model Citizen {
+  id               Int               @id @default(autoincrement())
+  nationalId       String            @unique
+  firstName        String
+  lastName         String
+  email            String            @unique
+  phone            String
+  status           String            @default("pending")
+  verifiedAt       DateTime?
+  user             User?
+  documentRequests DocumentRequest[]
+  storedFiles      StoredFile[]
+
+  @@index([status])
+  @@index([nationalId])
+}
+
+model Employee {
+  id            Int      @id @default(autoincrement())
+  name          String
+  email         String   @unique
+  phone         String
+  passport      String
+  nin           String
+  role          String
+  internalNotes String?
+  ministry      Ministry @relation(fields: [ministryId], references: [id])
+  ministryId    Int
+  user          User?
+
+  @@index([role])
+}
+
+model User {
+  id            Int            @id @default(autoincrement())
+  email         String         @unique
+  password      String
+  role          String         @default("citizen")
+  roleRef       Role?          @relation(fields: [roleId], references: [id])
+  roleId        Int?
+  citizen       Citizen?       @relation(fields: [citizenId], references: [id])
+  citizenId     Int?           @unique
+  employee      Employee?      @relation(fields: [employeeId], references: [id])
+  employeeId    Int?           @unique
+  sessions      Session[]
+  notifications Notification[]
+  createdAt     DateTime       @default(now())
+
+  @@index([role])
+}
+
+model Session {
+  id        Int       @id @default(autoincrement())
+  sessionId String    @unique
+  userId    Int
+  user      User      @relation(fields: [userId], references: [id])
+  createdAt DateTime  @default(now())
+  expiresAt DateTime?
+
+  @@index([userId])
+}
+
+model Document {
+  id             Int               @id @default(autoincrement())
+  title          String
+  type           String
+  classification String
+  content        String
+  status         String            @default("active")
+  storageKey     String?
+  bucket         String?
+  ministry       Ministry          @relation(fields: [ministryId], references: [id])
+  ministryId     Int
+  citizenId      Int?
+  versions       DocumentVersion[]
+
+  @@index([classification])
+  @@index([status])
+  @@index([citizenId])
+}
+
+model DocumentVersion {
+  id         Int      @id @default(autoincrement())
+  documentId Int
+  document   Document @relation(fields: [documentId], references: [id])
+  version    Int
+  storageKey String
+  bucket     String
+  checksum   String?
+  createdAt  DateTime @default(now())
+  createdBy  String?
+
+  @@unique([documentId, version])
+  @@index([documentId])
+}
+
+model StoredFile {
+  id         Int      @id @default(autoincrement())
+  bucket     String
+  objectKey  String
+  filename   String
+  mimeType   String
+  size       Int
+  version    Int      @default(1)
+  citizenId  Int?
+  citizen    Citizen? @relation(fields: [citizenId], references: [id])
+  documentId Int?
+  status     String   @default("active")
+  metadata   String?
+  createdAt  DateTime @default(now())
+
+  @@index([citizenId])
+  @@index([bucket, objectKey])
+}
+
+model DocumentRequest {
+  id           Int      @id @default(autoincrement())
+  citizenId    Int
+  citizen      Citizen  @relation(fields: [citizenId], references: [id])
+  documentType String
+  status       String   @default("submitted")
+  submittedAt  DateTime @default(now())
+  reviewedBy   String?
+
+  @@index([status])
+  @@index([citizenId])
+}
+
+model GrantApproval {
+  id         Int      @id @default(autoincrement())
+  applicant  String
+  amount     Float
+  status     String
+  approvedBy String?
+  createdAt  DateTime @default(now())
+}
+
+model AuditLog {
+  id            Int      @id @default(autoincrement())
+  action        String
+  detail        String
+  actor         String?
+  service       String?
+  correlationId String?
+  createdAt     DateTime @default(now())
+
+  @@index([action])
+  @@index([createdAt])
+}
+
+model Notification {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  channel   String
+  message   String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model Report {
+  id          Int      @id @default(autoincrement())
+  type        String
+  title       String
+  payload     String
+  generatedBy String?
+  status      String   @default("completed")
+  generatedAt DateTime @default(now())
+
+  @@index([type])
+  @@index([generatedAt])
+}
+
+model ServiceIdentity {
+  id          Int      @id @default(autoincrement())
+  serviceName String   @unique
+  token       String
+  createdAt   DateTime @default(now())
+}
