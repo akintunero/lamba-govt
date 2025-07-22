@@ -1,0 +1,33 @@
+{
+  "version": "1.0.0",
+  "eventEnvelope": {
+    "required": ["event_id", "event_type", "timestamp", "correlation_id", "source_service", "payload"],
+    "properties": {
+      "event_id": { "type": "string", "format": "uuid" },
+      "event_type": { "type": "string" },
+      "timestamp": { "type": "string", "format": "date-time" },
+      "correlation_id": { "type": "string" },
+      "source_service": { "type": "string" },
+      "payload": { "type": "object" }
+    }
+  },
+  "topics": [
+    "citizen.created",
+    "citizen.updated",
+    "identity.verified",
+    "document.uploaded",
+    "document.approved",
+    "document.rejected",
+    "notification.created",
+    "audit.event",
+    "report.generated",
+    "admin.action",
+    "auth.session",
+    "identity.user.created",
+    "identity.user.updated",
+    "legacy.record.created",
+    "legacy.record.updated",
+    "search.index.updated",
+    "search.index.failed"
+  ]
+}
