@@ -1,0 +1,104 @@
+{
+  "realm": "lamba-platform",
+  "enabled": true,
+  "sslRequired": "external",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": true,
+  "editUsernameAllowed": false,
+  "bruteForceProtected": true,
+  "accessTokenLifespan": 28800,
+  "ssoSessionIdleTimeout": 28800,
+  "ssoSessionMaxLifespan": 36000,
+  "roles": {
+    "realm": [
+      { "name": "citizen", "description": "Registered citizen" },
+      { "name": "employee", "description": "Government employee" },
+      { "name": "supervisor", "description": "Department supervisor" },
+      { "name": "compliance_officer", "description": "Compliance and audit officer" },
+      { "name": "administrator", "description": "Platform administrator" },
+      { "name": "platform_operator", "description": "Platform operations" }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "citizen-portal",
+      "name": "Citizen Portal",
+      "enabled": true,
+      "publicClient": true,
+      "directAccessGrantsEnabled": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "redirectUris": ["http://localhost:3000/portal/*", "http://localhost:8080/*"],
+      "webOrigins": ["http://localhost:3000", "http://localhost:8080"],
+      "protocol": "openid-connect"
+    },
+    {
+      "clientId": "admin-console",
+      "name": "Admin Console",
+      "enabled": true,
+      "publicClient": true,
+      "directAccessGrantsEnabled": true,
+      "standardFlowEnabled": true,
+      "redirectUris": ["http://localhost:3000/admin/*", "http://localhost:8080/*"],
+      "webOrigins": ["http://localhost:3000", "http://localhost:8080"],
+      "protocol": "openid-connect"
+    },
+    {
+      "clientId": "api-gateway",
+      "name": "API Gateway",
+      "enabled": true,
+      "publicClient": false,
+      "secret": "api-gateway-secret",
+      "directAccessGrantsEnabled": false,
+      "standardFlowEnabled": false,
+      "serviceAccountsEnabled": false,
+      "protocol": "openid-connect"
+    },
+    {
+      "clientId": "internal-services",
+      "name": "Internal Services",
+      "enabled": true,
+      "publicClient": false,
+      "secret": "internal-services-secret",
+      "directAccessGrantsEnabled": false,
+      "standardFlowEnabled": false,
+      "serviceAccountsEnabled": true,
+      "protocol": "openid-connect"
+    }
+  ],
+  "users": [
+    {
+      "username": "student@gov.lamba",
+      "email": "student@gov.lamba",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Student",
+      "lastName": "Citizen",
+      "credentials": [{ "type": "password", "value": "welcome123", "temporary": false }],
+      "realmRoles": ["citizen"],
+      "attributes": { "citizen_id": ["1"] }
+    },
+    {
+      "username": "admin@gov.lamba",
+      "email": "admin@gov.lamba",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Platform",
+      "lastName": "Administrator",
+      "credentials": [{ "type": "password", "value": "admin2024", "temporary": false }],
+      "realmRoles": ["administrator", "platform_operator"]
+    },
+    {
+      "username": "compliance@gov.lamba",
+      "email": "compliance@gov.lamba",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Compliance",
+      "lastName": "Officer",
+      "credentials": [{ "type": "password", "value": "compliance2024", "temporary": false }],
+      "realmRoles": ["compliance_officer", "employee"]
+    }
+  ]
+}
