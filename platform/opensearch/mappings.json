@@ -1,0 +1,64 @@
+{
+  "citizens": {
+    "mappings": {
+      "properties": {
+        "id": { "type": "integer" },
+        "nationalId": { "type": "keyword" },
+        "firstName": { "type": "text", "fields": { "raw": { "type": "keyword" } } },
+        "lastName": { "type": "text", "fields": { "raw": { "type": "keyword" } } },
+        "email": { "type": "keyword" },
+        "status": { "type": "keyword" },
+        "region": { "type": "keyword" },
+        "indexedAt": { "type": "date" }
+      }
+    }
+  },
+  "documents": {
+    "mappings": {
+      "properties": {
+        "id": { "type": "integer" },
+        "title": { "type": "text" },
+        "type": { "type": "keyword" },
+        "status": { "type": "keyword" },
+        "citizenId": { "type": "integer" },
+        "indexedAt": { "type": "date" }
+      }
+    }
+  },
+  "audit_logs": {
+    "mappings": {
+      "properties": {
+        "id": { "type": "integer" },
+        "action": { "type": "keyword" },
+        "detail": { "type": "text" },
+        "actor": { "type": "keyword" },
+        "service": { "type": "keyword" },
+        "correlationId": { "type": "keyword" },
+        "createdAt": { "type": "date" }
+      }
+    }
+  },
+  "reports": {
+    "mappings": {
+      "properties": {
+        "id": { "type": "integer" },
+        "type": { "type": "keyword" },
+        "title": { "type": "text" },
+        "status": { "type": "keyword" },
+        "generatedBy": { "type": "keyword" },
+        "generatedAt": { "type": "date" }
+      }
+    }
+  },
+  "notifications": {
+    "mappings": {
+      "properties": {
+        "id": { "type": "integer" },
+        "userId": { "type": "integer" },
+        "channel": { "type": "keyword" },
+        "message": { "type": "text" },
+        "createdAt": { "type": "date" }
+      }
+    }
+  }
+}
