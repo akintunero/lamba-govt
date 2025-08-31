@@ -1,0 +1,53 @@
+openapi: 3.0.3
+info:
+  title: Lamba Identity Integration API
+  version: 1.0.0
+  description: OAuth2 and OpenID Connect integration endpoints
+servers:
+  - url: http://localhost:8080/api
+paths:
+  /v1/oidc/token:
+    post:
+      summary: Obtain OIDC tokens
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                grantType:
+                  type: string
+                  enum: [password, refresh_token, client_credentials]
+                username:
+                  type: string
+                password:
+                  type: string
+                refreshToken:
+                  type: string
+                clientType:
+                  type: string
+                  enum: [citizen, admin, gateway, internal]
+      responses:
+        '200':
+          description: Token response
+  /v1/oidc/introspect:
+    post:
+      summary: Token introspection
+      responses:
+        '200':
+          description: Introspection result
+  /v1/oidc/userinfo:
+    get:
+      summary: Authenticated user profile
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: User info
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
