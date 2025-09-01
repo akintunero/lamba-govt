@@ -1,0 +1,94 @@
+openapi: 3.0.3
+info:
+  title: Lamba Auth Service API
+  version: 1.0.0
+  description: Authentication and session management for Lamba Digital Services Platform
+servers:
+  - url: /api/v1/auth
+    description: Version 1
+  - url: /api/auth
+    description: Legacy
+paths:
+  /login:
+    post:
+      summary: Authenticate user
+      tags: [Authentication]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string, format: password }
+      responses:
+        '200':
+          description: Authentication successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          description: Invalid credentials
+  /register:
+    post:
+      summary: Register new user account
+      tags: [Authentication]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string }
+                password: { type: string }
+                citizenId: { type: integer }
+                employeeId: { type: integer }
+      responses:
+        '201':
+          description: User created
+  /session:
+    get:
+      summary: Retrieve session context
+      tags: [Sessions]
+      parameters:
+        - name: sessionId
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          description: Session details
+        '401':
+          description: No active session
+  /me:
+    get:
+      summary: Current authenticated user
+      tags: [Authentication]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: User profile
+        '401':
+          description: Authentication required
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    AuthResponse:
+      type: object
+      properties:
+        token: { type: string }
+        user:
+          type: object
+          properties:
+            userId: { type: integer }
+            email: { type: string }
+            role: { type: string }
