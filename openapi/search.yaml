@@ -1,0 +1,59 @@
+openapi: 3.0.3
+info:
+  title: Lamba Search API
+  version: 1.0.0
+servers:
+  - url: http://localhost:8080/api/v1/search
+paths:
+  /citizens:
+    get:
+      summary: Search citizen records
+      parameters:
+        - name: q
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: from
+          in: query
+          schema:
+            type: integer
+        - name: size
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Search results with facets
+  /documents:
+    get:
+      summary: Search documents
+      parameters:
+        - name: q
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Document search results
+  /audit:
+    get:
+      summary: Search audit logs
+      responses:
+        '200':
+          description: Audit search results
+  /reports:
+    get:
+      summary: Search reports
+      responses:
+        '200':
+          description: Report search results
+  /reindex:
+    post:
+      summary: Rebuild search indexes from database
+      responses:
+        '200':
+          description: Reindex complete
