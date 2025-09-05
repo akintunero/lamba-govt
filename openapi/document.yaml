@@ -1,0 +1,87 @@
+openapi: 3.0.3
+info:
+  title: Lamba Document Service API
+  version: 1.0.0
+  description: Document lifecycle, storage integration, and request management
+servers:
+  - url: /api/v1/documents
+  - url: /api/v2/documents
+paths:
+  /:
+    get:
+      summary: List documents
+      tags: [Documents]
+      responses:
+        '200':
+          description: Document catalogue
+    post:
+      summary: Upload document
+      tags: [Documents]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DocumentUpload'
+      responses:
+        '201':
+          description: Document created
+  /{id}:
+    get:
+      summary: Retrieve document
+      tags: [Documents]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Document details
+  /{id}/archive:
+    post:
+      summary: Archive document
+      tags: [Documents]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Document archived
+  /citizen/{citizenId}/history:
+    get:
+      summary: Citizen document history
+      tags: [Documents]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: citizenId
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Document and file history
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+  schemas:
+    DocumentUpload:
+      type: object
+      required: [title, content]
+      properties:
+        title: { type: string }
+        type: { type: string }
+        classification: { type: string }
+        content: { type: string }
+        ministryId: { type: integer }
+        citizenId: { type: integer }
+        filename: { type: string }
