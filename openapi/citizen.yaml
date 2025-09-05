@@ -1,0 +1,66 @@
+openapi: 3.0.3
+info:
+  title: Lamba Citizen Service API
+  version: 1.0.0
+  description: Citizen registry, onboarding, and staff directory services
+servers:
+  - url: /api/v1/citizens
+paths:
+  /onboard:
+    post:
+      summary: Register citizen identity record
+      tags: [Citizens]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CitizenOnboardRequest'
+      responses:
+        '201':
+          description: Citizen registered
+  /{id}:
+    get:
+      summary: Retrieve citizen record
+      tags: [Citizens]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Citizen record
+        '404':
+          description: Not found
+  /{id}/verify:
+    post:
+      summary: Verify citizen identity
+      tags: [Citizens]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Citizen verified
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+  schemas:
+    CitizenOnboardRequest:
+      type: object
+      required: [nationalId, firstName, lastName, email]
+      properties:
+        nationalId: { type: string }
+        firstName: { type: string }
+        lastName: { type: string }
+        email: { type: string }
+        phone: { type: string }
