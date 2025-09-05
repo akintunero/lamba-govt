@@ -1,0 +1,67 @@
+openapi: 3.0.3
+info:
+  title: Lamba Admin Service API
+  version: 1.0.0
+  description: Ministry administration, grant approvals, and platform operations
+servers:
+  - url: /api/v1/admin
+  - url: /api/admin
+paths:
+  /ministries:
+    get:
+      summary: Ministry registry
+      tags: [Administration]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Ministry list with associated records
+  /dashboard:
+    get:
+      summary: Platform operational dashboard
+      tags: [Administration]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Dashboard metrics
+  /grants/approve:
+    post:
+      summary: Approve grant application
+      tags: [Grants]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                applicant: { type: string }
+                amount: { type: number }
+      responses:
+        '200':
+          description: Grant approved
+  /imports/employees:
+    post:
+      summary: Import employee data package
+      tags: [Imports]
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                packageName: { type: string }
+                payloadDigest: { type: string }
+      responses:
+        '200':
+          description: Import accepted
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
