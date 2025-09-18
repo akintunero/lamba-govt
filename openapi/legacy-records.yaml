@@ -1,0 +1,71 @@
+openapi: 3.0.3
+info:
+  title: Lamba Legacy Records Service
+  version: 1.0.0
+  description: Archived government records from legacy platform govrecords-v1
+servers:
+  - url: http://localhost:8080/api/v1/legacy
+paths:
+  /citizens:
+    get:
+      summary: List archived citizen records
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Legacy citizen records
+  /citizens/{nationalId}:
+    get:
+      summary: Retrieve archived citizen with documents and cases
+      parameters:
+        - name: nationalId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Legacy citizen detail
+  /documents:
+    get:
+      summary: List archived document metadata
+      responses:
+        '200':
+          description: Legacy documents
+  /cases:
+    get:
+      summary: List legacy case records
+      responses:
+        '200':
+          description: Legacy cases
+  /compliance-reports:
+    get:
+      summary: List archived compliance reports
+      responses:
+        '200':
+          description: Compliance reports
+  /sync/citizen:
+    post:
+      summary: Synchronize legacy record with modern citizen
+      responses:
+        '200':
+          description: Synchronization result
+  /sync/import:
+    post:
+      summary: Import record into legacy archive
+      responses:
+        '201':
+          description: Imported record
+  /transform/link-modern:
+    post:
+      summary: Link legacy record to modern platform citizen
+      responses:
+        '200':
+          description: Linked records
