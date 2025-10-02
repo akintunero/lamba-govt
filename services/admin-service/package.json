@@ -1,0 +1,10 @@
+{
+  "name": "admin-service",
+  "version": "1.0.0",
+  "private": true,
+  "main": "src/index.js",
+  "dependencies": {
+    "@prisma/client": "^5.16.1",
+    "express": "^4.19.2"
+  }
+}
