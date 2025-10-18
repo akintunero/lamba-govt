@@ -1,0 +1,11 @@
+{
+  "name": "file-storage-service",
+  "version": "1.0.0",
+  "private": true,
+  "main": "src/index.js",
+  "dependencies": {
+    "@prisma/client": "^5.16.1",
+    "express": "^4.19.2",
+    "minio": "^8.0.1"
+  }
+}
