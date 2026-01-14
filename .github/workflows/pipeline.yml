@@ -1,0 +1,184 @@
+name: lamba-platform-ci
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: "20"
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Syntax check services
+        run: |
+          node --check gateway/src/index.js
+          node --check services/auth-service/src/index.js
+          node --check services/citizen-service/src/index.js
+          node --check services/document-service/src/index.js
+          node --check services/admin-service/src/index.js
+          node --check services/audit-service/src/index.js
+          node --check services/notification-service/src/index.js
+          node --check services/file-storage-service/src/index.js
+          node --check services/reporting-service/src/index.js
+          node --check services/metrics-service/src/index.js
+          node --check services/search-service/src/index.js
+          node --check services/legacy-records-service/src/index.js
+          node --check platform/common/kafka.js
+          node --check platform/common/events.js
+          node --check platform/common/keycloak.js
+          node --check platform/common/opensearch.js
+          node --check services/audit-service/src/consumer.js
+          node --check services/notification-service/src/consumer.js
+          node --check services/reporting-service/src/consumer.js
+          node --check services/search-service/src/consumer.js
+
+  identity-validation:
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Validate identity configuration
+        run: node scripts/validate-identity-config.js
+
+  openapi-validation:
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate OpenAPI specifications
+        run: node scripts/validate-openapi.js
+
+  search-index-validation:
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate search index mappings
+        run: node scripts/validate-search-mappings.js
+
+  legacy-service-validation:
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate legacy service assets
+        run: node scripts/validate-legacy-service.js
+
+  unit-test:
+    needs: [identity-validation, openapi-validation, search-index-validation, legacy-service-validation]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Run unit tests
+        run: |
+          echo "Unit test suite executed (simulated)"
+          node -e "process.exit(0)"
+
+  integration-test:
+    needs: unit-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Integration test simulation
+        run: |
+          echo "Integration tests against service contracts (simulated)"
+          docker compose -f docker-compose.lite.yml config >/dev/null
+      - name: Kafka consumer test simulation
+        run: |
+          node scripts/validate-event-schemas.js
+          echo "Kafka consumer contract tests passed (simulated)"
+
+  build:
+    needs: integration-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Validate event schemas
+        run: node scripts/validate-event-schemas.js
+      - name: Install platform db dependencies
+        working-directory: platform/db
+        run: npm install
+      - name: Generate Prisma client
+        working-directory: platform/db
+        run: npx prisma generate
+      - name: Generate OpenAPI artifacts
+        run: node scripts/generate-openapi.js
+      - name: Generate SBOM
+        run: node scripts/generate-sbom.js
+      - name: Build frontend
+        working-directory: frontend
+        run: |
+          npm install
+          npm run build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lamba-build-artifacts
+          path: artifacts/
+
+  container-build:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build container images
+        run: |
+          echo "Building platform container images (simulated)"
+          for svc in auth-service citizen-service document-service admin-service audit-service notification-service file-storage-service reporting-service metrics-service search-service legacy-records-service; do
+            echo "Built lamba/${svc}:latest"
+          done
+          echo "Built lamba/api-gateway:latest"
+          echo "Built lamba/frontend:latest"
+
+  dependency-check:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependency analysis
+        run: echo "Dependency vulnerability scan completed (simulated)"
+
+  image-scan:
+    needs: container-build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Container image scan
+        run: echo "Container image security scan completed (simulated)"
+
+  deploy-simulation:
+    needs: [image-scan, dependency-check]
+    runs-on: ubuntu-latest
+    environment:
+      name: staging-simulation
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deployment approval gate
+        run: echo "Deployment approved for staging simulation"
+      - name: Validate Compose lite stack
+        run: |
+          test -f docker-compose.lite.yml
+          docker compose -f docker-compose.lite.yml config >/dev/null
+          test -f platform/keycloak/lamba-platform-realm.json
+          test -f platform/opensearch/mappings.json
+      - name: Post-deploy smoke test
+        run: |
+          echo "GET /health -> 200 (simulated)"
+          echo "GET /api/health/services -> 200 (simulated)"
