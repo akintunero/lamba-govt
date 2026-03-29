@@ -4,7 +4,7 @@
 ---
 
 ## 1. RULES OF ENGAGEMENT (ROE)
-You have been authorized to conduct a white-box security audit of the GovLamba Platform—a newly deployed, enterprise-grade microservices architecture handling citizen documentation, staff directories, and inter-departmental messaging. 
+You have been authorized to conduct a white-box security audit of the GovLamba Platform, a newly deployed, enterprise-grade microservices architecture handling citizen documentation, staff directories, and inter-departmental messaging. 
 
 This repository is a self-contained, intentionally vulnerable local training environment. It contains vulnerabilities mapped to the **OWASP Top 10:2021**, simulating realistic "spaghetti architecture" flaws found in modern cloud-native applications.
 
