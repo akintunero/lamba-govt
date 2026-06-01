@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { apiFetch } from '../../api.js';
+import { apiFetch } from '../api.js';
 
 export default function SearchPanel({ token, index, title, placeholder }) {
   const [query, setQuery] = useState('');
