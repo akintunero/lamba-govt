@@ -174,7 +174,6 @@ async function loginHandler(req, res) {
     employeeId: user.employeeId,
     citizenId: user.citizenId
   };
-  const clientIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || 'unknown';
   await prisma.user.update({
     where: { id: user.id },
     data: { lastLoginAt: new Date(), lastLoginIp: clientIp }
