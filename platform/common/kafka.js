@@ -12,7 +12,9 @@ let kafkaClient;
 let sharedProducer;
 
 function getBrokers() {
-  return (process.env.KAFKA_BROKERS || 'kafka:9092').split(',').map((b) => b.trim());
+  const brokers = process.env.KAFKA_BROKERS;
+  if (!brokers) return ['kafka:9092'];
+  return brokers.split(',').map((b) => b.trim());
 }
 
 function getKafkaClient(clientId) {

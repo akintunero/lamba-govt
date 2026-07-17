@@ -7,6 +7,7 @@ export default function AdminLogin({ onLogin }) {
   const [email, setEmail] = useState('admin@gov.lamba');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [lastLogin, setLastLogin] = useState(null);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -16,6 +17,9 @@ export default function AdminLogin({ onLogin }) {
         method: 'POST',
         body: { email, password, clientType: 'admin' }
       });
+      if (data.user?.lastLoginAt) {
+        setLastLogin({ at: data.user.lastLoginAt, ip: data.user.lastLoginIp });
+      }
       onLogin(data.token, data.user, data.refreshToken);
     } catch (err) {
       setError(err.message);
@@ -29,15 +33,21 @@ export default function AdminLogin({ onLogin }) {
         <h1 className="mt-2 text-2xl font-semibold">Government operations console</h1>
         {KEYCLOAK_ENABLED && <p className="mt-2 text-xs text-slate-400">Enterprise identity (Keycloak)</p>}
         {error && <p className="mt-4 rounded-md bg-red-950 px-3 py-2 text-sm text-red-300">{error}</p>}
+        {lastLogin && (
+          <div className="mt-4 rounded-md bg-amber-950 px-3 py-2 text-xs text-amber-300">
+            Last login: {new Date(lastLogin.at).toLocaleString()}
+            {lastLogin.ip ? ` from ${lastLogin.ip}` : ''}
+          </div>
+        )}
         <label className="mt-6 block text-sm">
           Email
-          <input className="mt-1 w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2" value={email} onChange={(e) => setEmail(e.target.value)} />
+          <input className="mt-1 w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 focus:border-amber-500 focus:outline-none" value={email} onChange={(e) => setEmail(e.target.value)} required />
         </label>
         <label className="mt-4 block text-sm">
           Password
-          <input type="password" className="mt-1 w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2" value={password} onChange={(e) => setPassword(e.target.value)} />
+          <input type="password" className="mt-1 w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 focus:border-amber-500 focus:outline-none" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} />
         </label>
-        <button type="submit" className="mt-6 w-full rounded-md bg-amber-500 px-4 py-2 text-slate-950">Sign in</button>
+        <button type="submit" className="mt-6 w-full rounded-md bg-amber-500 px-4 py-2 text-slate-950 hover:bg-amber-400">Sign in</button>
       </form>
     </div>
   );

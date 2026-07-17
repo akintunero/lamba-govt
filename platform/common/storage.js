@@ -1,6 +1,6 @@
 const { serviceFetch } = require('./http');
 
-const STORAGE_URL = process.env.FILE_STORAGE_SERVICE_URL || 'http://file-storage-service:3007';
+const STORAGE_URL = process.env.FILE_STORAGE_SERVICE_URL;
 
 async function uploadObject({ bucket, filename, content, mimeType, citizenId, documentId, correlationId }) {
   return serviceFetch(STORAGE_URL, '/v1/objects/upload', {

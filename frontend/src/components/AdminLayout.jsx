@@ -1,13 +1,15 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import NotificationBell from './NotificationBell.jsx';
 
-export default function AdminLayout({ user, onLogout, children }) {
+export default function AdminLayout({ user, token, onLogout, children }) {
   const location = useLocation();
 
   const links = [
     { to: '/admin', label: 'Overview' },
     { to: '/admin/ministries', label: 'Ministries' },
-    { to: '/admin/approvals', label: 'Approvals' }
+    { to: '/admin/approvals', label: 'Approvals' },
+    { to: '/admin/legacy', label: 'Legacy Migration' }
   ];
 
   return (
@@ -20,17 +22,18 @@ export default function AdminLayout({ user, onLogout, children }) {
           </div>
           <div className="flex items-center gap-4">
             <span className="text-sm text-slate-300">{user?.email}</span>
+            <NotificationBell token={token} />
             <button type="button" onClick={onLogout} className="rounded-md bg-amber-500 px-3 py-1.5 text-sm text-slate-950">
               Sign out
             </button>
           </div>
         </div>
-        <nav className="mx-auto flex max-w-6xl gap-6 px-6 pb-3 text-sm">
+        <nav className="mx-auto flex max-w-6xl gap-6 overflow-x-auto px-6 pb-3 text-sm">
           {links.map((link) => (
             <Link
               key={link.to}
               to={link.to}
-              className={location.pathname === link.to ? 'font-medium text-amber-400' : 'text-slate-400'}
+              className={`whitespace-nowrap ${location.pathname === link.to ? 'font-medium text-amber-400' : 'text-slate-400 hover:text-slate-200'}`}
             >
               {link.label}
             </Link>

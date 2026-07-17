@@ -1,10 +1,13 @@
 {
   "name": "lamba-digital-services-platform",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "private": true,
   "description": "Lamba Government Digital Services Platform",
   "scripts": {
     "start": "./start.sh",
+    "typecheck": "npx tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "compose:up": "docker compose -f docker-compose.lite.yml up --build -d",
     "compose:down": "docker compose down",
     "db:seed": "npm --prefix platform/db run seed",
@@ -17,5 +20,16 @@
     "validate:search": "node scripts/validate-search-mappings.js",
     "validate:legacy": "node scripts/validate-legacy-service.js",
     "validate:all": "npm run validate:events && npm run validate:identity && npm run validate:openapi && npm run validate:search && npm run validate:legacy"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/cookie-parser": "^1.4.10",
+    "@types/crypto-js": "^4.2.2",
+    "@types/express": "^5.0.6",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/node": "^26.1.1",
+    "jsonwebtoken": "^9.0.3",
+    "typescript": "^5.5.0",
+    "vitest": "^2.1.9"
   }
 }

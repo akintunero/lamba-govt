@@ -1,6 +1,7 @@
 const express = require('express');
 const { getPrisma } = require('../../../platform/common/db');
 const { attachUser, requireAuth } = require('../../../platform/common/auth');
+const { badRequest, notFound, internalError } = require('../../../platform/common/errors');
 const {
   correlationMiddleware,
   serviceAuthMiddleware,
@@ -11,11 +12,18 @@ const {
 const { publishEventSafe, kafkaPrometheusMetrics } = require('../../../platform/common/kafka');
 const { TOPICS } = require('../../../platform/common/events');
 const ctfFlags = require('../../../platform/common/ctf-flags');
+const { maskPassport, maskNIN, maskPhone, maskEmail } = require('../../../platform/common/mask');
 
 const app = express();
 const prisma = getPrisma();
 const PORT = process.env.PORT || 3002;
 const SERVICE = 'citizen-service';
+
+function registerRoute(method, paths, ...handlers) {
+  for (const path of paths) {
+    app[method](path, ...handlers);
+  }
+}
 
 app.use(express.json());
 app.use(correlationMiddleware);
@@ -39,18 +47,17 @@ app.get('/citizens/:id', requireAuth, async (req, res) => {
   const id = parseInt(req.params.id, 10);
   const citizen = await prisma.citizen.findUnique({ where: { id } });
   if (!citizen) {
-    return res.status(404).json({ error: 'Citizen not found' });
+    return notFound(res, 'Citizen not found');
   }
   return res.json(citizen);
 });
 
-app.post('/v1/citizens/onboard', onboardHandler);
-app.post('/citizens/onboard', onboardHandler);
+registerRoute('post', ['/v1/citizens/onboard', '/citizens/onboard'], onboardHandler);
 
 async function onboardHandler(req, res) {
   const { nationalId, firstName, lastName, email, phone } = req.body;
   if (!nationalId || !firstName || !lastName || !email) {
-    return res.status(400).json({ error: 'Missing required fields' });
+    return badRequest(res, 'nationalId, firstName, lastName, and email are required');
   }
   try {
     const citizen = await prisma.citizen.create({
@@ -65,7 +72,7 @@ async function onboardHandler(req, res) {
     });
     return res.status(201).json(citizen);
   } catch (err) {
-    return res.status(400).json({ error: 'Onboarding failed', detail: err.message });
+    return internalError(res, `Onboarding failed: ${err.message}`);
   }
 }
 
@@ -98,11 +105,11 @@ app.get('/employees', requireAuth, async (_req, res) => {
     employees.map((e) => ({
       id: e.id,
       name: e.name,
-      email: e.email,
-      phone: e.phone,
+      email: maskEmail(e.email),
+      phone: maskPhone(e.phone),
       role: e.role,
-      passport: e.passport,
-      nin: e.nin,
+      passport: maskPassport(e.passport),
+      nin: maskNIN(e.nin),
       ministry: e.ministry?.acronym || null
     }))
   );
@@ -135,24 +142,27 @@ app.get('/employees/search', requireAuth, async (req, res) => {
     const unionSelectSucceeded = hasSuccessfulUnionSelectPayload(q);
     const sqliFlag = ctfFlags.a03Sqli();
     if ((markerExfiltrated || unionSelectSucceeded) && sqliFlag) {
-      return res.json({ flag: sqliFlag, results });
+      const flagged = Array.isArray(results) && results.length > 0
+        ? results.map((r, i) => i === 0 ? { ...r, campaign_signature: sqliFlag } : r)
+        : results;
+      return res.json(flagged);
     }
     return res.json(results);
   } catch (err) {
-    return res.status(500).json({ error: 'Search failed', detail: err.message });
+    return internalError(res, `Search failed: ${err.message}`);
   }
 });
 
 app.get('/employees/me', requireAuth, async (req, res) => {
   if (!req.user?.employeeId) {
-    return res.status(404).json({ error: 'No employee profile linked' });
+    return notFound(res, 'No employee profile linked');
   }
   const employee = await prisma.employee.findUnique({
     where: { id: req.user.employeeId },
     include: { ministry: true }
   });
   if (!employee) {
-    return res.status(404).json({ error: 'Employee not found' });
+    return notFound(res, 'Employee not found');
   }
   return res.json(employee);
 });
@@ -162,12 +172,12 @@ const PRIVILEGED_ESCALATION_ROLES = ['Director', 'Admin'];
 app.put('/employees/:id', requireAuth, async (req, res) => {
   const id = parseInt(req.params.id, 10);
   if (Number.isNaN(id)) {
-    return res.status(400).json({ error: 'Invalid employee id' });
+    return badRequest(res, 'Invalid employee id');
   }
   try {
     const existing = await prisma.employee.findUnique({ where: { id } });
     if (!existing) {
-      return res.status(404).json({ error: 'Employee not found' });
+      return notFound(res, 'Employee not found');
     }
     const updated = await prisma.employee.update({ where: { id }, data: req.body });
     const requestedRole = req.body.role;
@@ -177,7 +187,7 @@ app.put('/employees/:id', requireAuth, async (req, res) => {
       PRIVILEGED_ESCALATION_ROLES.includes(updated.role) &&
       !PRIVILEGED_ESCALATION_ROLES.includes(existing.role);
     const massAssignmentFlag = roleEscalated ? ctfFlags.a08MassAssignment() : '';
-    const payload = massAssignmentFlag ? { ...updated, flag: massAssignmentFlag } : updated;
+    const payload = massAssignmentFlag ? { ...updated, profile_audit_hash: massAssignmentFlag } : updated;
     return res.json(payload);
   } catch (err) {
     return res.status(400).json({ error: 'Update failed', detail: err.message });
@@ -186,14 +196,29 @@ app.put('/employees/:id', requireAuth, async (req, res) => {
 
 app.get('/staff/directory', async (_req, res) => {
   const employees = await prisma.employee.findMany();
-  return res.json({ version: 'v1', employees });
+  const masked = employees.map((e) => ({
+    ...e,
+    email: maskEmail(e.email),
+    phone: maskPhone(e.phone),
+    passport: maskPassport(e.passport),
+    nin: maskNIN(e.nin)
+  }));
+  return res.json({ version: 'v1', employees: masked });
 });
 
 app.get('/staff/public', async (_req, res) => {
   const employees = await prisma.employee.findMany({
     select: { id: true, name: true, email: true, phone: true, passport: true, nin: true, role: true }
   });
-  return res.json({ employees });
+  return res.json({
+    employees: employees.map((e) => ({
+      ...e,
+      email: maskEmail(e.email),
+      phone: maskPhone(e.phone),
+      passport: maskPassport(e.passport),
+      nin: maskNIN(e.nin)
+    }))
+  });
 });
 
 app.listen(PORT, () => {

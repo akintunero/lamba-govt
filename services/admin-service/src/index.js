@@ -1,6 +1,7 @@
 const express = require('express');
 const { getPrisma } = require('../../../platform/common/db');
 const { attachUser, requireAuth } = require('../../../platform/common/auth');
+const { badRequest } = require('../../../platform/common/errors');
 const {
   correlationMiddleware,
   serviceAuthMiddleware,
@@ -10,11 +11,18 @@ const {
 } = require('../../../platform/common/middleware');
 const { publishEventSafe, kafkaPrometheusMetrics } = require('../../../platform/common/kafka');
 const { TOPICS } = require('../../../platform/common/events');
+const ctfFlags = require('../../../platform/common/ctf-flags');
 
 const app = express();
 const prisma = getPrisma();
 const PORT = process.env.PORT || 3004;
 const SERVICE = 'admin-service';
+
+function registerRoute(method, paths, ...handlers) {
+  for (const path of paths) {
+    app[method](path, ...handlers);
+  }
+}
 
 app.use(express.json());
 app.use(correlationMiddleware);
@@ -29,8 +37,7 @@ app.get('/metrics', (_req, res) => {
   res.send(metrics.prometheus(SERVICE) + kafkaPrometheusMetrics(SERVICE));
 });
 
-app.get('/v1/ministries', requireAuth, ministriesHandler);
-app.get('/ministries', requireAuth, ministriesHandler);
+registerRoute('get', ['/v1/ministries', '/ministries'], requireAuth, ministriesHandler);
 
 async function ministriesHandler(_req, res) {
   const ministries = await prisma.ministry.findMany({
@@ -100,6 +107,31 @@ app.get('/dashboard', requireAuth, async (_req, res) => {
     prisma.grantApproval.count()
   ]);
   return res.json({ citizens, requests, grants });
+});
+
+const A06_FLAG = ctfFlags.a06PrototypePollution();
+app.post('/v1/admin/import/settings', requireAuth, async (req, res) => {
+  const { packageName, settings } = req.body;
+  if (!packageName || !settings) return badRequest(res, 'packageName and settings are required');
+  try {
+    const _ = require('lodash');
+    const defaults = { logLevel: 'info', retentionDays: 30, features: { audit: true, search: true } };
+    const merged = _.merge({}, defaults, settings);
+    let flag = '';
+    if (merged.features?.__proto__?.polluted === 'yes' && A06_FLAG) {
+      flag = A06_FLAG;
+    }
+    await publishEventSafe({
+      topic: TOPICS.ADMIN_ACTION,
+      eventType: TOPICS.ADMIN_ACTION,
+      sourceService: SERVICE,
+      correlationId: req.correlationId,
+      payload: { action: 'SETTINGS_IMPORT', packageName, actor: req.user?.email }
+    });
+    return res.json({ message: 'Settings imported', settings: merged, ...(flag ? { settings_audit_reference: flag } : {}) });
+  } catch (err) {
+    return res.status(400).json({ error: 'Import failed', detail: err.message });
+  }
 });
 
 app.listen(PORT, () => {

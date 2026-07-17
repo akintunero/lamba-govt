@@ -1,14 +1,16 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import NotificationBell from './NotificationBell.jsx';
 
-export default function CitizenLayout({ user, onLogout, children }) {
+export default function CitizenLayout({ user, token, onLogout, children }) {
   const location = useLocation();
 
   const links = [
     { to: '/portal', label: 'Dashboard' },
     { to: '/portal/documents', label: 'Documents' },
     { to: '/portal/onboarding', label: 'Identity' },
-    { to: '/portal/employees', label: 'Directory' }
+    { to: '/portal/employees', label: 'Directory' },
+    { to: '/portal/sessions', label: 'Sessions' }
   ];
 
   return (
@@ -21,17 +23,18 @@ export default function CitizenLayout({ user, onLogout, children }) {
           </div>
           <div className="flex items-center gap-4">
             <span className="text-sm text-slate-600">{user?.email}</span>
+            <NotificationBell token={token} />
             <button type="button" onClick={onLogout} className="rounded-md bg-slate-900 px-3 py-1.5 text-sm text-white">
               Sign out
             </button>
           </div>
         </div>
-        <nav className="mx-auto flex max-w-6xl gap-6 px-6 pb-3 text-sm">
+        <nav className="mx-auto flex max-w-6xl gap-6 overflow-x-auto px-6 pb-3 text-sm">
           {links.map((link) => (
             <Link
               key={link.to}
               to={link.to}
-              className={location.pathname === link.to ? 'font-medium text-teal-700' : 'text-slate-600'}
+              className={`whitespace-nowrap ${location.pathname === link.to ? 'font-medium text-teal-700' : 'text-slate-600 hover:text-slate-800'}`}
             >
               {link.label}
             </Link>

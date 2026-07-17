@@ -1,6 +1,10 @@
 const crypto = require('crypto');
 
-const SERVICE_TOKEN = process.env.SERVICE_AUTH_TOKEN || 'lamba-inter-service-token-v1';
+const SERVICE_TOKEN = process.env.SERVICE_AUTH_TOKEN;
+if (!SERVICE_TOKEN) {
+  console.error('FATAL: SERVICE_AUTH_TOKEN environment variable is not set');
+  process.exit(1);
+}
 
 function correlationMiddleware(req, res, next) {
   const correlationId = req.headers['x-request-id'] || crypto.randomUUID();

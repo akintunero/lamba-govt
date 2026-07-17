@@ -30,6 +30,9 @@ function Sidebar() {
         >
           Passport Services
         </NavLink>
+        <NavLink to="/challenges" className={({ isActive }) => (isActive ? `${linkClasses} bg-blue-900` : linkClasses)}>
+          Challenges
+        </NavLink>
       </nav>
     </div>
   );

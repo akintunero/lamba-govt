@@ -4,7 +4,7 @@ const crypto = require('crypto');
 const KEYCLOAK_REALM = process.env.KEYCLOAK_REALM || 'lamba-platform';
 const KEYCLOAK_URL = process.env.KEYCLOAK_URL || 'http://keycloak:8080';
 const KEYCLOAK_CLIENT_ID = process.env.KEYCLOAK_CLIENT_ID || 'internal-services';
-const KEYCLOAK_CLIENT_SECRET = process.env.KEYCLOAK_CLIENT_SECRET || 'internal-services-secret';
+const KEYCLOAK_CLIENT_SECRET = process.env.KEYCLOAK_CLIENT_SECRET;
 
 const ROLE_MAP = {
   citizen: 'citizen',

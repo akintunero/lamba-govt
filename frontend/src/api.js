@@ -4,7 +4,9 @@ const API_BASE =
     ? 'http://localhost:8080/api'
     : '/api');
 
-export async function apiFetch(path, { method = 'GET', body, token } = {}) {
+const TOKEN_EXPIRY_EVENT = 'lamba:token-expired';
+
+export async function apiFetch(path, { method = 'GET', body, token, signal } = {}) {
   const headers = {
     'Content-Type': 'application/json'
   };
@@ -16,8 +18,21 @@ export async function apiFetch(path, { method = 'GET', body, token } = {}) {
     method,
     headers,
     credentials: 'include',
-    body: body ? JSON.stringify(body) : undefined
+    body: body ? JSON.stringify(body) : undefined,
+    signal
   });
+
+  if (res.status === 401) {
+    window.dispatchEvent(new CustomEvent(TOKEN_EXPIRY_EVENT));
+    let message = 'Session expired. Please log in again.';
+    try {
+      const data = await res.json();
+      message = data.error || message;
+    } catch {
+      //
+    }
+    throw new Error(message);
+  }
 
   if (!res.ok) {
     let message = `Request failed with status ${res.status}`;
@@ -25,7 +40,7 @@ export async function apiFetch(path, { method = 'GET', body, token } = {}) {
       const data = await res.json();
       message = data.error || message;
     } catch {
-      // ignore
+      //
     }
     throw new Error(message);
   }
@@ -33,4 +48,4 @@ export async function apiFetch(path, { method = 'GET', body, token } = {}) {
   return res.json();
 }
 
-export { API_BASE };
+export { API_BASE, TOKEN_EXPIRY_EVENT };

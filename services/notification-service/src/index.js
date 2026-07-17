@@ -52,11 +52,16 @@ app.post('/notifications', requireAuth, async (req, res) => {
   return res.status(201).json(notification);
 });
 
-app.patch('/notifications/:id/read', requireAuth, async (req, res) => {
+app.patch('/notifications/:id', requireAuth, async (req, res) => {
   const id = parseInt(req.params.id, 10);
+  const data = {};
+  if (req.body.read === true) data.read = true;
+  if (Object.keys(data).length === 0) {
+    return res.status(400).json({ error: 'No fields to update' });
+  }
   const updated = await prisma.notification.update({
     where: { id },
-    data: { read: true }
+    data
   });
   return res.json(updated);
 });

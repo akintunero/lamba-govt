@@ -1,0 +1,120 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# NOTE: Not needed for Docker deployments (secrets auto-generated inside container).
+# Only use this for local development without Docker Compose.
+
+ENV_FILE=".env"
+
+if [ -f "$ENV_FILE" ]; then
+  echo "[*] $ENV_FILE already exists. Remove it to regenerate."
+  exit 0
+fi
+
+echo "[*] Generating dynamic environment with random secrets..."
+
+# Database
+POSTGRES_USER="lamba"
+POSTGRES_PASSWORD="lamba"
+POSTGRES_DB="lamba_platform"
+DATABASE_URL="postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}"
+LEGACY_DATABASE_URL="postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/lamba_legacy"
+
+# Dynamic secrets (random 32-byte hex)
+JWT_SECRET="lamba-$(openssl rand -hex 16)"
+SERVICE_AUTH_TOKEN="lamba-$(openssl rand -hex 16)"
+
+# MinIO
+MINIO_ACCESS_KEY="minio-$(openssl rand -hex 8)"
+MINIO_SECRET_KEY="$(openssl rand -hex 24)"
+
+# Keycloak
+KEYCLOAK_ADMIN="admin"
+KEYCLOAK_ADMIN_PASSWORD="kc-$(openssl rand -hex 12)"
+KEYCLOAK_CLIENT_SECRET="kc-client-$(openssl rand -hex 16)"
+
+# Gateway client secret (used for OIDC)
+API_GATEWAY_CLIENT_SECRET="gw-$(openssl rand -hex 16)"
+
+# Seed accounts (random passwords)
+SEED_STUDENT_EMAIL="student@gov.lamba"
+SEED_STUDENT_PASSWORD="$(openssl rand -base64 12)"
+SEED_ADMIN_EMAIL="admin@gov.lamba"
+SEED_ADMIN_PASSWORD="$(openssl rand -base64 12)"
+
+# Diagnostics
+DIAGNOSTICS_TOKEN="diag-$(openssl rand -hex 16)"
+
+# CTF flags — fully random UUID-style tokens
+CTF_FLAG_A01_IDOR="FLAG{$(openssl rand -hex 16)}"
+CTF_FLAG_A02_JWT_FORGE="FLAG{$(openssl rand -hex 16)}"
+CTF_FLAG_A03_SQLI="FLAG{$(openssl rand -hex 16)}"
+CTF_FLAG_A04_PREDICTABLE_RESET="FLAG{$(openssl rand -hex 16)}"
+CTF_FLAG_A05_INTERNAL_GATEWAY="FLAG{$(openssl rand -hex 16)}"
+CTF_FLAG_A05_METRICS_LINE="lamba_ctf_flag{status=\"$(openssl rand -hex 8)\"}"
+CTF_FLAG_A06_PROTOTYPE_POLLUTION="FLAG{$(openssl rand -hex 16)}"
+CTF_FLAG_A07_SESSION_FIXATION="FLAG{$(openssl rand -hex 16)}"
+CTF_FLAG_A08_MASS_ASSIGNMENT="FLAG{$(openssl rand -hex 16)}"
+CTF_FLAG_A09_AUDIT_SPOOF="FLAG{$(openssl rand -hex 16)}"
+CTF_FLAG_A10_SSRF="FLAG{$(openssl rand -hex 16)}"
+CTF_FLAG_A10_DIAGNOSTICS="FLAG{$(openssl rand -hex 16)}"
+CTF_FLAG_CRYPTO_PADDING_ORACLE="FLAG{$(openssl rand -hex 16)}"
+CTF_FLAG_FORENSICS_LOG_ANALYSIS="FLAG{$(openssl rand -hex 16)}"
+CTF_FLAG_TIMING_ATTACK="FLAG{$(openssl rand -hex 16)}"
+CTF_CRYPTO_KEY="$(openssl rand -hex 32)"
+CTF_CRYPTO_IV="$(openssl rand -hex 16)"
+
+cat > "$ENV_FILE" << ENVEOF
+# Lamba Government Platform — Auto-generated (do not commit)
+POSTGRES_USER=${POSTGRES_USER}
+POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+POSTGRES_DB=${POSTGRES_DB}
+DATABASE_URL=${DATABASE_URL}
+LEGACY_DATABASE_URL=${LEGACY_DATABASE_URL}
+
+JWT_SECRET=${JWT_SECRET}
+SERVICE_AUTH_TOKEN=${SERVICE_AUTH_TOKEN}
+
+MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY}
+MINIO_SECRET_KEY=${MINIO_SECRET_KEY}
+
+KEYCLOAK_ADMIN=${KEYCLOAK_ADMIN}
+KEYCLOAK_ADMIN_PASSWORD=${KEYCLOAK_ADMIN_PASSWORD}
+KEYCLOAK_CLIENT_SECRET=${KEYCLOAK_CLIENT_SECRET}
+KEYCLOAK_CLIENT_ID=internal-services
+API_GATEWAY_CLIENT_SECRET=${API_GATEWAY_CLIENT_SECRET}
+API_GATEWAY_CLIENT_ID=api-gateway
+
+SEED_STUDENT_EMAIL=${SEED_STUDENT_EMAIL}
+SEED_STUDENT_PASSWORD=${SEED_STUDENT_PASSWORD}
+SEED_ADMIN_EMAIL=${SEED_ADMIN_EMAIL}
+SEED_ADMIN_PASSWORD=${SEED_ADMIN_PASSWORD}
+
+DIAGNOSTICS_TOKEN=${DIAGNOSTICS_TOKEN}
+
+CTF_FLAG_A01_IDOR=${CTF_FLAG_A01_IDOR}
+CTF_FLAG_A02_JWT_FORGE=${CTF_FLAG_A02_JWT_FORGE}
+CTF_FLAG_A03_SQLI=${CTF_FLAG_A03_SQLI}
+CTF_FLAG_A04_PREDICTABLE_RESET=${CTF_FLAG_A04_PREDICTABLE_RESET}
+CTF_FLAG_A05_INTERNAL_GATEWAY=${CTF_FLAG_A05_INTERNAL_GATEWAY}
+CTF_FLAG_A05_METRICS_LINE=${CTF_FLAG_A05_METRICS_LINE}
+CTF_FLAG_A06_PROTOTYPE_POLLUTION=${CTF_FLAG_A06_PROTOTYPE_POLLUTION}
+CTF_FLAG_A07_SESSION_FIXATION=${CTF_FLAG_A07_SESSION_FIXATION}
+CTF_FLAG_A08_MASS_ASSIGNMENT=${CTF_FLAG_A08_MASS_ASSIGNMENT}
+CTF_FLAG_A09_AUDIT_SPOOF=${CTF_FLAG_A09_AUDIT_SPOOF}
+CTF_FLAG_A10_SSRF=${CTF_FLAG_A10_SSRF}
+CTF_FLAG_A10_DIAGNOSTICS=${CTF_FLAG_A10_DIAGNOSTICS}
+CTF_FLAG_CRYPTO_PADDING_ORACLE=${CTF_FLAG_CRYPTO_PADDING_ORACLE}
+CTF_FLAG_FORENSICS_LOG_ANALYSIS=${CTF_FLAG_FORENSICS_LOG_ANALYSIS}
+CTF_FLAG_TIMING_ATTACK=${CTF_FLAG_TIMING_ATTACK}
+CTF_CRYPTO_KEY=${CTF_CRYPTO_KEY}
+CTF_CRYPTO_IV=${CTF_CRYPTO_IV}
+
+REQUEST_ACCESS_LOGS=false
+ENVEOF
+
+echo "[*] Environment generated: $ENV_FILE"
+echo "    Student:  ${SEED_STUDENT_EMAIL} / ${SEED_STUDENT_PASSWORD}"
+echo "    Admin:    ${SEED_ADMIN_EMAIL} / ${SEED_ADMIN_PASSWORD}"
+echo "    Keycloak: admin / ${KEYCLOAK_ADMIN_PASSWORD}"
+echo "    Flags:    12 flags generated (dynamic per deployment)"

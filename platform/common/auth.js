@@ -3,7 +3,11 @@ const { isKeycloakEnabled, verifyKeycloakToken } = require('./keycloak');
 const { getPrisma } = require('./db');
 const ctfFlags = require('./ctf-flags');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'lamba-platform-signing-key-v1';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  console.error('FATAL: JWT_SECRET environment variable is not set');
+  process.exit(1);
+}
 
 function hasAdminPrivileges(payload) {
   if (!payload) return false;
@@ -45,7 +49,7 @@ async function attachUser(req, res, next) {
     req.user = payload;
     const forgedFlag = ctfFlags.a02JwtForge();
     if (forgedFlag && (await isForgedAdminLegacyToken(payload))) {
-      res.setHeader('X-CTF-Flag', forgedFlag);
+      res.setHeader('X-Admin-Audit-Trace', forgedFlag);
     }
   } catch {
     req.user = null;
