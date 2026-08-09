@@ -25,7 +25,13 @@ topics=(
 
 echo "Initializing Kafka topics on ${BOOTSTRAP}"
 
+existing=$(/opt/bitnami/kafka/bin/kafka-topics.sh --list --bootstrap-server "${BOOTSTRAP}" 2>/dev/null || true)
+already=0
 for topic in "${topics[@]}"; do
+  if printf '%s\n' "$existing" | grep -qx "$topic"; then
+    already=$((already + 1))
+    continue
+  fi
   /opt/bitnami/kafka/bin/kafka-topics.sh \
     --create \
     --if-not-exists \
@@ -36,4 +42,4 @@ for topic in "${topics[@]}"; do
   echo "Topic ready: ${topic}"
 done
 
-echo "Kafka topic initialization complete"
+echo "Kafka topic initialization complete (${already} already existed)"
