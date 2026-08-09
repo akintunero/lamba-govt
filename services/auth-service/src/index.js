@@ -4,7 +4,7 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const cookieParser = require('cookie-parser');
 const { getPrisma } = require('../../../platform/common/db');
-const { JWT_SECRET, attachUser } = require('../../../platform/common/auth');
+const { JWT_SECRET, attachUser, requireAuth } = require('../../../platform/common/auth');
 const { badRequest, unauthorized, notFound } = require('../../../platform/common/errors');
 const {
   isKeycloakEnabled,

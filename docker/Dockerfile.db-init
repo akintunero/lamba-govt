@@ -1,4 +1,6 @@
-FROM node:20-alpine
+FROM node:20-slim
+
+RUN apt-get update -y && apt-get install -y --no-install-recommends openssl && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app/platform/db
 COPY platform/db/ ./
@@ -7,9 +9,9 @@ RUN npm install && npx prisma generate
 COPY docker/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
-RUN apk del curl wget netcat-openbsd ping nmap apk-tools 2>/dev/null || true; rm -rf /var/cache/apk/*
+RUN apt-get remove -y curl wget netcat-openbsd dnsutils iputils-ping nmap 2>/dev/null || true; rm -rf /var/lib/apt/lists/*
 
-RUN addgroup -S ctf && adduser -S -G ctf ctfuser && chown -R ctfuser:ctf /app
+RUN groupadd -r ctf && useradd -r -g ctf ctfuser && chown -R ctfuser:ctf /app
 
 USER ctfuser
 

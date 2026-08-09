@@ -232,7 +232,7 @@ async function main() {
       passport: generatePassport(empId),
       nin: generateNIN(empId),
       role: 'Deputy Director',
-      internalNotes: null,
+      internalNotes: dd.name === 'Michael Taylor' ? 'INJECTION_PROOF_ALPHA73' : null,
       ministryId: dd.ministryId
     });
   }

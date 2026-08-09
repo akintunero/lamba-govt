@@ -1,6 +1,8 @@
-FROM node:20-alpine
+FROM node:20-slim
 
 ARG SERVICE_DIR=services/auth-service
+
+RUN apt-get update -y && apt-get install -y --no-install-recommends openssl && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app/platform/db
 COPY platform/db/package.json platform/db/schema.prisma ./
@@ -9,6 +11,13 @@ RUN npm install && npx prisma generate
 WORKDIR /app/platform/common
 COPY platform/common/ ./
 RUN npm install
+
+# The generated Prisma client lives under platform/db/node_modules; the common
+# module loads @prisma/client from its own node_modules, so bridge them.
+RUN rm -rf node_modules/.prisma && ln -s /app/platform/db/node_modules/.prisma node_modules/.prisma
+
+# Services resolve shared modules via ../../../platform/common — expose at /
+RUN ln -s /app/platform /platform
 
 WORKDIR /app/service
 COPY ${SERVICE_DIR}/package.json ./
@@ -22,9 +31,9 @@ EXPOSE 3000
 COPY docker/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
-RUN apk del curl wget netcat-openbsd ping nmap apk-tools 2>/dev/null || true; rm -rf /var/cache/apk/*
+RUN apt-get remove -y curl wget netcat-openbsd dnsutils iputils-ping nmap 2>/dev/null || true; rm -rf /var/lib/apt/lists/*
 
-RUN addgroup -S ctf && adduser -S -G ctf ctfuser && chown -R ctfuser:ctf /app
+RUN groupadd -r ctf && useradd -r -g ctf ctfuser && mkdir -p /app && chown -R ctfuser:ctf /app
 
 USER ctfuser
 

@@ -1,5 +1,5 @@
 const express = require('express');
-const { createProxyMiddleware } = require('http-proxy-middleware');
+const { legacyCreateProxyMiddleware } = require('http-proxy-middleware');
 const crypto = require('crypto');
 const path = require('path');
 const { isKeycloakEnabled, verifyKeycloakToken } = require(path.join(__dirname, '../../platform/common/keycloak'));
@@ -72,11 +72,11 @@ function getClientIp(req) {
 }
 
 function proxy(target, pathRewrite) {
-  return createProxyMiddleware({ target, changeOrigin: true, pathRewrite });
+  return legacyCreateProxyMiddleware({ target, changeOrigin: true, pathRewrite });
 }
 
 function publicGatewayProxy(target, pathRewrite) {
-  return createProxyMiddleware({
+  return legacyCreateProxyMiddleware({
     target,
     changeOrigin: true,
     pathRewrite,
@@ -136,6 +136,7 @@ app.use('/api/employees', proxy(services.citizen, { '^/api/employees': '/employe
 app.use('/api/staff', proxy(services.citizen, { '^/api/staff': '/staff' }));
 app.use('/api/documents', proxy(services.document, { '^/api/documents': '/documents' }));
 app.use('/api/requests', proxy(services.document, { '^/api/requests': '/requests' }));
+app.use('/api/admin/import', proxy(services.admin, { '^/api/admin/import': '/v1/admin/import' }));
 app.use('/api/admin', proxy(services.admin, { '^/api/admin': '' }));
 app.use('/api/audit', proxy(services.audit, { '^/api/audit': '' }));
 app.use('/api/notifications', proxy(services.notification, { '^/api/notifications': '' }));
@@ -149,11 +150,12 @@ app.use('/api/legacy', proxy(services.legacy, { '^/api/legacy': '/legacy/v1' }))
 app.use('/api/internal-proxy', proxy(services.document, { '^/api/internal-proxy': '/verify-remote' }));
 app.use('/api/internal', publicGatewayProxy(services.audit, { '^/api/internal': '/internal' }));
 
+app.use('/api/v1/booking', proxy(services.document, { '^/api/v1/booking': '/v1/booking' }));
+app.use('/api/_waf', proxy(services.audit, { '^/api/_waf': '/_waf' }));
 app.use('/api/v1/staff-directory', proxy(services.citizen, { '^/api/v1/staff-directory': '/staff/directory' }));
 app.use('/api/approve-grant', proxy(services.admin, { '^/api/approve-grant': '/grants/approve' }));
-app.use('/api/admin/import', proxy(services.admin, { '^/api/admin/import': '/v1/admin/import' }));
 app.use('/api/employee', proxy(services.citizen, { '^/api/employee': '/employees' }));
-app.use('/api/password-reset', proxy(services.auth, { '^/api/password-reset': '/v1/auth/password-reset' }));
+app.use('/api/password-reset', proxy(services.auth, { '^/api/password-reset': '' }));
 
 app.use((_req, res) => {
   res.status(404).json({ error: 'Not found' });

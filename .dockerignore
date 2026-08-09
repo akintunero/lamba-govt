@@ -6,7 +6,6 @@ README.md
 instructors/
 artifacts/
 scripts/
-openapi/
 *.md
 .env
 .env.*
