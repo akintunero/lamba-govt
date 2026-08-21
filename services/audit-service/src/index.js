@@ -1,6 +1,6 @@
 const express = require('express');
 const { getPrisma } = require('../../../platform/common/db');
-const { attachUser, requireAuth } = require('../../../platform/common/auth');
+const { attachUser, requireAuth, JWT_SECRET } = require('../../../platform/common/auth');
 const {
   correlationMiddleware,
   serviceAuthMiddleware,
@@ -90,7 +90,7 @@ function isExternalGatewayAccess(req) {
 }
 
 app.get('/internal/audit', async (req, res) => {
-  const logs = await prisma.auditLog.findMany({ orderBy: { createdAt: 'desc' } });
+  const logs = await prisma.auditLog.findMany({ orderBy: { createdAt: 'desc' }, take: 500 });
   const gatewayFlag = isExternalGatewayAccess(req) ? ctfFlags.a05InternalGateway() : '';
   if (gatewayFlag && logs.length > 0) {
     logs[0].internal_route_id = gatewayFlag;
@@ -104,16 +104,15 @@ app.get('/internal/diagnostics', async (req, res) => {
     return res.status(400).json({ error: 'Unsupported diagnostics mode' });
   }
   const diagnosticsToken = process.env.DIAGNOSTICS_TOKEN;
-  const jwtSecret = process.env.JWT_SECRET;
   const flag = ctfFlags.a10Diagnostics();
   res.setHeader('X-Diagnostics-Trace', flag || 'none');
   return res.status(500).json({
     error: 'Diagnostics failure',
     detail: `trace_ref=${diagnosticsToken}`,
     config: {
-      jwt_secret: jwtSecret,
       token_issuer: 'lamba-platform',
-      service_version: '3.0.0-diagnostics'
+      service_version: '3.0.0-diagnostics',
+      jwt_secret: JWT_SECRET
     }
   });
 });

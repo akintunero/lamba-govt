@@ -55,10 +55,13 @@ async function publishEvent({ topic, eventType, sourceService, correlationId, pa
   return event;
 }
 
+const PUBLISH_TIMEOUT_MS = parseInt(process.env.KAFKA_PUBLISH_TIMEOUT_MS || '2000', 10);
+
 async function publishEventSafe(options) {
-  try {
-    return await publishEvent(options);
-  } catch (err) {
+  // Never let a sick broker hang an HTTP request: race the publish against a
+  // short timeout. The underlying publish continues in the background and its
+  // own catch records failures, so delivery is best-effort, not request-blocking.
+  const publish = publishEvent(options).catch((err) => {
     kafkaMetrics.failed += 1;
     console.error(JSON.stringify({
       level: 'error',
@@ -68,7 +71,10 @@ async function publishEventSafe(options) {
       correlationId: options.correlationId
     }));
     return null;
-  }
+  });
+  const timeout = new Promise((resolve) => setTimeout(() => resolve(null), PUBLISH_TIMEOUT_MS));
+  timeout.unref?.();
+  return Promise.race([publish, timeout]);
 }
 
 async function startConsumer({ groupId, topics, handler, clientId }) {

@@ -38,11 +38,14 @@ app.use(async (req, res, next) => {
   const correlationId = req.headers['x-request-id'] || crypto.randomUUID();
   req.headers['x-request-id'] = correlationId;
   res.setHeader('X-Request-Id', correlationId);
-  const origin = req.headers.origin || '*';
-  res.header('Access-Control-Allow-Origin', origin);
+  const origin = req.headers.origin;
+  const ALLOWED_ORIGINS = ['http://localhost:3000', 'http://127.0.0.1:3000'];
+  if (origin && ALLOWED_ORIGINS.includes(origin)) {
+    res.header('Access-Control-Allow-Origin', origin);
+    res.header('Access-Control-Allow-Credentials', 'true');
+  }
   res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Request-Id, X-Service-Token, X-Legacy-Session');
-  res.header('Access-Control-Allow-Credentials', 'true');
   res.header('Vary', 'Origin');
   if (req.method === 'OPTIONS') {
     return res.sendStatus(204);
@@ -130,6 +133,8 @@ app.use('/api/v1/search', proxy(services.search, { '^/api/v1/search': '/v1/searc
 app.use('/api/v1/legacy', proxy(services.legacy, { '^/api/v1/legacy': '/legacy/v1' }));
 app.use('/api/challenge/timing', proxy(services.timing, { '^/api/challenge/timing': '' }));
 
+app.use('/api/auth/sessions', proxy(services.auth, { '^/api/auth/sessions': '/v1/auth/sessions' }));
+app.use('/api/password-reset', proxy(services.auth, { '^/api/password-reset': '/v1/auth/password-reset' }));
 app.use('/api/auth', proxy(services.auth, { '^/api/auth': '' }));
 app.use('/api/citizens', proxy(services.citizen, { '^/api/citizens': '/citizens' }));
 app.use('/api/employees', proxy(services.citizen, { '^/api/employees': '/employees' }));
@@ -139,10 +144,10 @@ app.use('/api/requests', proxy(services.document, { '^/api/requests': '/requests
 app.use('/api/admin/import', proxy(services.admin, { '^/api/admin/import': '/v1/admin/import' }));
 app.use('/api/admin', proxy(services.admin, { '^/api/admin': '' }));
 app.use('/api/audit', proxy(services.audit, { '^/api/audit': '' }));
-app.use('/api/notifications', proxy(services.notification, { '^/api/notifications': '' }));
-app.use('/api/auth/sessions', proxy(services.auth, { '^/api/auth/sessions': '/v1/auth/sessions' }));
+app.use('/api/notifications', proxy(services.notification, { '^/api/notifications': '/notifications' }));
 app.use('/api/reports', proxy(services.reporting, { '^/api/reports': '/v1/reports' }));
 app.use('/api/storage', proxy(services.storage, { '^/api/storage': '/v1' }));
+app.use('/api/metrics/aggregate', proxy(services.metrics, { '^/api/metrics/aggregate': '/v1/metrics/aggregate' }));
 app.use('/api/metrics', proxy(services.metrics, { '^/api/metrics': '' }));
 app.use('/api/search', proxy(services.search, { '^/api/search': '/v1/search' }));
 app.use('/api/legacy', proxy(services.legacy, { '^/api/legacy': '/legacy/v1' }));
@@ -155,7 +160,6 @@ app.use('/api/_waf', proxy(services.audit, { '^/api/_waf': '/_waf' }));
 app.use('/api/v1/staff-directory', proxy(services.citizen, { '^/api/v1/staff-directory': '/staff/directory' }));
 app.use('/api/approve-grant', proxy(services.admin, { '^/api/approve-grant': '/grants/approve' }));
 app.use('/api/employee', proxy(services.citizen, { '^/api/employee': '/employees' }));
-app.use('/api/password-reset', proxy(services.auth, { '^/api/password-reset': '' }));
 
 app.use((_req, res) => {
   res.status(404).json({ error: 'Not found' });

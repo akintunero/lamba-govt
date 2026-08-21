@@ -37,7 +37,24 @@ docker logs lamba-secret-init
 
 ## Architecture
 
-11 microservices behind an API gateway, PostgreSQL, MinIO, Kafka, Keycloak.
+12 microservices behind an API gateway, PostgreSQL, MinIO, Kafka, Keycloak.
+
+## Challenges
+
+15 intentional vulnerabilities. Student-facing descriptions live in `CHALLENGES.md`
+(distribute it out-of-band; it is not served by the platform).
+
+## Verification
+
+Black-box E2E suite (instructor use) — exploits every challenge through the
+public gateway and validates flags, account isolation, and flag-leak hygiene:
+
+```bash
+make test        # or: bash scripts/e2e-ctf-test.sh
+```
+
+Requires `curl`, `jq`, `python3` (stdlib only). Exits non-zero if any check fails.
+See `audit/FINAL_BLACKBOX_AUDIT.md` for the latest release assessment.
 
 ## Disclaimer
 

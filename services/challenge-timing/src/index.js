@@ -1,58 +1,54 @@
 const express = require('express');
+const crypto = require('crypto');
 
 const app = express();
 const PORT = process.env.PORT || 3012;
 const SERVICE = 'challenge-timing';
 
+// The challenge token is deliberately short (hex) so a per-character timing
+// attack over HTTP is practical. Each correct leading character adds a
+// measurable server-side delay; wrong prefixes return immediately.
+const TIMING_SECRET = process.env.TIMING_ATTACK_SECRET || 'deadbeef00';
 const FLAG = process.env.CTF_FLAG_TIMING_ATTACK || 'FLAG{placeholder_timing_flag}';
+// 80ms per correct character: deliberately far above typical local HTTP
+// jitter (~50-150ms through the gateway), so the side channel is measurable
+// with a handful of samples per candidate.
+const PER_CHAR_DELAY_MS = parseInt(process.env.TIMING_PER_CHAR_MS || '80', 10);
 
 app.use(express.json());
 
 app.get('/health', (_req, res) => res.json({ status: 'ok', service: SERVICE }));
 
-app.get('/source', (_req, res) => {
-  res.set('Content-Type', 'text/plain; charset=utf-8');
-  res.send(SOURCE_CODE);
-});
-
-const SOURCE_CODE = `// Idan → Lamba Timing Attack (White-Box)
-// The compare below is NOT constant-time. It returns on the first mismatched
-// byte, so response time (elapsed_ns) leaks how many leading characters match.
-
-const FLAG = process.env.CTF_FLAG_TIMING_ATTACK;
-
-function unsafeCompare(a, b) {
-  if (a.length !== b.length) return false;
-  for (let i = 0; i < a.length; i++) {
-    if (a[i] !== b[i]) return false; // leaks byte-by-byte match length
-  }
-  return true;
-}
-
-// GET /validate?token=<guess>  ->  { valid, elapsed_ns }
-// Longer elapsed_ns == more leading bytes matched. Brute-force char by char.
-`;
-
-function unsafeCompare(a, b) {
-  if (a.length !== b.length) return false;
-  for (let i = 0; i < a.length; i++) {
-    if (a[i] !== b[i]) return false;
-  }
-  return true;
-}
-
+// GET /validate?token=<guess>
+// Deliberately vulnerable: response time grows by PER_CHAR_DELAY_MS for every
+// correct leading character. Recover the token char-by-char, then submit it.
 app.get('/validate', (req, res) => {
-  const token = req.query.token || '';
+  const token = String(req.query.token || '');
   const start = process.hrtime.bigint();
-  const valid = unsafeCompare(token, FLAG);
-  const end = process.hrtime.bigint();
-  const elapsed = Number(end - start);
 
-  res.json({
-    valid,
-    elapsed_ns: elapsed,
-    message: valid ? 'Access granted' : 'Access denied'
-  });
+  let matchingChars = 0;
+  const maxLen = Math.min(token.length, TIMING_SECRET.length);
+  for (let i = 0; i < maxLen; i++) {
+    if (token[i] !== TIMING_SECRET[i]) break;
+    matchingChars++;
+  }
+
+  // Release the event loop so concurrent requests are not blocked, then apply
+  // a per-matching-character delay that is far larger than HTTP jitter.
+  const delayMs = matchingChars * PER_CHAR_DELAY_MS;
+  setTimeout(() => {
+    const valid = token === TIMING_SECRET;
+    const elapsed = Number(process.hrtime.bigint() - start);
+    const body = {
+      valid,
+      elapsed_ns: elapsed,
+      message: valid ? 'Access granted' : 'Access denied'
+    };
+    if (valid && FLAG) {
+      body.flag = FLAG;
+    }
+    res.json(body);
+  }, delayMs);
 });
 
 app.listen(PORT, () => {

@@ -29,13 +29,23 @@ app.get('/metrics', (_req, res) => {
   res.send(metrics.prometheus(SERVICE) + kafkaPrometheusMetrics(SERVICE));
 });
 
+async function resolveDbUserId(user) {
+  if (!user) return null;
+  if (typeof user.userId === 'number') return user.userId;
+  if (user.keycloak && user.email) {
+    const dbUser = await prisma.user.findUnique({ where: { email: user.email }, select: { id: true } });
+    return dbUser?.id ?? null;
+  }
+  return null;
+}
+
 app.get('/notifications', requireAuth, async (req, res) => {
-  const userId = req.user?.userId;
-  if (!userId) {
+  const dbUserId = await resolveDbUserId(req.user);
+  if (!dbUserId) {
     return res.status(401).json({ error: 'Authentication required' });
   }
   const notifications = await prisma.notification.findMany({
-    where: { userId },
+    where: { userId: dbUserId },
     orderBy: { createdAt: 'desc' }
   });
   return res.json({ notifications });

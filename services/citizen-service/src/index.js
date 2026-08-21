@@ -137,11 +137,15 @@ app.get('/employees/search', requireAuth, async (req, res) => {
          OR role = '${q}'
     `;
     const results = await prisma.$queryRawUnsafe(query);
+    // The flag proves an injection exploit — it must not fire for plain
+    // searches. Require injection syntax in q; the marker row is reachable via
+    // broad normal search, so the marker alone is not sufficient evidence.
+    const injectionAttempted = /('|--|\/\*|\bunion\b|\bselect\b|\bor\b\s+['\d]|\;)/i.test(q);
     const markerExfiltrated =
       Array.isArray(results) && results.some(rowContainsInjectionMarker);
     const unionSelectSucceeded = hasSuccessfulUnionSelectPayload(q);
     const sqliFlag = ctfFlags.a03Sqli();
-    if ((markerExfiltrated || unionSelectSucceeded) && sqliFlag) {
+    if (injectionAttempted && (markerExfiltrated || unionSelectSucceeded) && sqliFlag) {
       const flagged = Array.isArray(results) && results.length > 0
         ? results.map((r, i) => i === 0 ? { ...r, campaign_signature: sqliFlag } : r)
         : results;

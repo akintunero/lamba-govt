@@ -29,7 +29,7 @@ app.get('/metrics', (_req, res) => {
   res.send(metrics.prometheus(SERVICE));
 });
 
-app.post('/v1/objects/upload', async (req, res) => {
+app.post('/v1/objects/upload', requireAuth, async (req, res) => {
   const { bucket, filename, content, mimeType, citizenId, documentId } = req.body;
   if (!bucket || !filename || !content) {
     return res.status(400).json({ error: 'bucket, filename, and content are required' });
@@ -55,7 +55,7 @@ app.post('/v1/objects/upload', async (req, res) => {
   return res.status(201).json(record);
 });
 
-app.get('/v1/objects/:bucket/:objectKey', async (req, res) => {
+app.get('/v1/objects/:bucket/:objectKey', requireAuth, async (req, res) => {
   const { bucket, objectKey } = req.params;
   const record = await prisma.storedFile.findFirst({ where: { bucket, objectKey } });
   if (!record) {
@@ -74,7 +74,7 @@ app.get('/v1/objects/:bucket/:objectKey', async (req, res) => {
   });
 });
 
-app.get('/v1/objects/:bucket/:objectKey/signed-url', async (req, res) => {
+app.get('/v1/objects/:bucket/:objectKey/signed-url', requireAuth, async (req, res) => {
   const { bucket, objectKey } = req.params;
   const expiry = parseInt(req.query.expiry || '3600', 10);
   const minio = getClient();
@@ -100,7 +100,7 @@ app.post('/v1/objects/:bucket/:objectKey/archive', requireAuth, async (req, res)
   return res.json({ archived: true, bucket: 'lamba-archives', objectKey: archiveKey });
 });
 
-app.get('/v1/objects/citizen/:citizenId/history', async (req, res) => {
+app.get('/v1/objects/citizen/:citizenId/history', requireAuth, async (req, res) => {
   const citizenId = parseInt(req.params.citizenId, 10);
   const files = await prisma.storedFile.findMany({
     where: { citizenId },
@@ -109,7 +109,7 @@ app.get('/v1/objects/citizen/:citizenId/history', async (req, res) => {
   return res.json({ citizenId, files });
 });
 
-app.get('/v1/buckets', async (_req, res) => {
+app.get('/v1/buckets', requireAuth, async (_req, res) => {
   const minio = getClient();
   const buckets = await minio.listBuckets();
   return res.json({ buckets: buckets.map((b) => b.name) });

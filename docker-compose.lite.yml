@@ -76,10 +76,13 @@ services:
     volumes:
       - kafka-data:/bitnami/kafka
     healthcheck:
+      # The --list probe is slow while KRaft leadership settles; keep the
+      # healthcheck informational (nothing gates on it) with a wide timeout.
       test: ["CMD-SHELL", "/opt/bitnami/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list || exit 1"]
-      interval: 10s
-      timeout: 10s
+      interval: 15s
+      timeout: 60s
       retries: 10
+      start_period: 180s
     restart: unless-stopped
 
   kafka-init:
@@ -87,7 +90,9 @@ services:
     container_name: lamba-kafka-init
     depends_on:
       kafka:
-        condition: service_healthy
+        # Do not gate on the healthcheck: its --list probe is heavier than the
+        # 10s timeout under load. init-topics.sh waits for the broker itself.
+        condition: service_started
     volumes:
       - ./platform/kafka/init-topics.sh:/init-topics.sh:ro
     entrypoint: ["/bin/bash", "/init-topics.sh"]
@@ -492,10 +497,8 @@ services:
       secret-init:
         condition: service_completed_successfully
     environment:
-      PORT: 3012
       CTF_FLAG_TIMING_ATTACK: ${CTF_FLAG_TIMING_ATTACK:-}
-    ports:
-      - "3012:3012"
+      PORT: 3012
 
   metrics-service:
     build:

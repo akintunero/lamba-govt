@@ -87,7 +87,8 @@ services:
     container_name: lamba-kafka-init
     depends_on:
       kafka:
-        condition: service_healthy
+        # See docker-compose.lite.yml — init-topics.sh waits for the broker.
+        condition: service_started
     volumes:
       - ./platform/kafka/init-topics.sh:/init-topics.sh:ro
     entrypoint: ["/bin/bash", "/init-topics.sh"]
@@ -515,8 +516,9 @@ services:
     environment:
       PORT: 3012
       CTF_FLAG_TIMING_ATTACK: ${CTF_FLAG_TIMING_ATTACK:-}
-    ports:
-      - "3012:3012"
+      TIMING_ATTACK_SECRET: ${TIMING_ATTACK_SECRET:-}
+    # Intentionally no host port: the challenge is only reachable through the
+    # public gateway, per the CTF rules (no direct internal service ports).
 
   metrics-service:
     build:

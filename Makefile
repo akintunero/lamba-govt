@@ -1,6 +1,6 @@
 COMPOSE := docker compose -f docker-compose.lite.yml
 
-.PHONY: up build down logs reset validate
+.PHONY: up build down logs reset validate test
 
 up:
 	$(COMPOSE) up -d
@@ -17,6 +17,9 @@ logs:
 reset:
 	$(COMPOSE) down -v
 	@echo "Reset complete. Run 'make build' then 'make up'."
+
+test:
+	bash scripts/e2e-ctf-test.sh
 
 validate:
 	node scripts/validate-openapi.js

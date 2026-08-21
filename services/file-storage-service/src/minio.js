@@ -1,17 +1,30 @@
 const Minio = require('minio');
+const fs = require('fs');
 
 const BUCKETS = ['lamba-documents', 'lamba-archives', 'lamba-citizen-uploads'];
 
 let client;
 
+function readSecret(filePath) {
+  try {
+    return fs.readFileSync(filePath, 'utf8').trim();
+  } catch {
+    return undefined;
+  }
+}
+
 function getClient() {
   if (!client) {
+    // Prefer env-provided credentials; fall back to the secret files. This
+    // avoids stale secret-file values being used when env is already correct.
+    const accessKey = process.env.MINIO_ACCESS_KEY || readSecret('/secrets/minio-root-user');
+    const secretKey = process.env.MINIO_SECRET_KEY || readSecret('/secrets/minio-root-password');
     client = new Minio.Client({
       endPoint: process.env.MINIO_ENDPOINT || 'minio',
       port: parseInt(process.env.MINIO_PORT || '9000', 10),
       useSSL: process.env.MINIO_USE_SSL === 'true',
-      accessKey: process.env.MINIO_ACCESS_KEY,
-      secretKey: process.env.MINIO_SECRET_KEY
+      accessKey,
+      secretKey
     });
   }
   return client;

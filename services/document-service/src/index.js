@@ -268,6 +268,39 @@ app.get('/v1/booking/encrypted-manifest', (req, res) => {
   }
 });
 
+app.post('/v1/booking/encrypted-manifest', (req, res) => {
+  const { action, manifestId, ciphertext } = req.body || {};
+  const encrypted = manifestId || ciphertext;
+  if (!action || !encrypted) {
+    return res.status(400).json({ error: 'action and manifestId (or ciphertext) are required' });
+  }
+  if (action !== 'decrypt') {
+    return res.status(400).json({ error: 'Invalid action. Expected: decrypt' });
+  }
+  try {
+    const plain = decryptManifest(encrypted);
+    const parsed = JSON.parse(plain);
+    const flag = CRYPTO_FLAG || 'FLAG{placeholder}';
+    return res.json({
+      decrypted: parsed,
+      paddingValid: true,
+      paddingOracleHint: 'PKCS#7 padding verified successfully',
+      flag
+    });
+  } catch (err) {
+    const paddingError = err.message.includes('bad decrypt') || err.message.includes('padding');
+    if (paddingError) {
+      return res.status(400).json({
+        error: 'Invalid padding detected',
+        paddingOracle: true,
+        hint: 'The last byte of the decrypted block indicates the number of padding bytes. Manipulate the ciphertext to exploit the oracle.',
+        detail: 'Padding error — the decryption succeeded but the final padding bytes are malformed'
+      });
+    }
+    return res.status(500).json({ error: 'Decryption failed', detail: err.message });
+  }
+});
+
 app.get('/verify-remote', async (req, res) => {
   const url = req.query.url;
   if (!url) return res.status(400).json({ error: 'url query parameter is required' });
