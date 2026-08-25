@@ -1,62 +1,39 @@
-# Lamba Government Digital Services Platform
+# Lamba Government Digital Services CTF
 
-**Educational black-box CTF training environment.**  
-This platform is intentionally vulnerable for security education purposes.  
-All services run locally in Docker — nothing is exposed to the internet.
-
-## Requirements
-
-- Docker & Docker Compose
-- Minimum 8GB RAM
+Black-box web application security CTF. All challenges are solvable through the public interface only — no source code or backend access is needed or allowed.
 
 ## Quick Start
 
-```bash
-bash start.sh
-```
+| Service          | URL                          |
+|------------------|------------------------------|
+| Citizen portal   | http://localhost:3000/portal |
+| Admin console    | http://localhost:3000/admin  |
+| API gateway      | http://localhost:8080/api    |
 
-Alternatively:
+No credentials are provided. Discover or create accounts as needed.
 
-```bash
-docker compose -f docker-compose.lite.yml up --build -d
-```
+See `CHALLENGES.md` for the list of challenges, hints, and entry points.
 
-## Access
+## Flag Format
 
-| Service | URL |
-|---------|-----|
-| Citizen portal | http://localhost:3000/portal |
-| Admin console | http://localhost:3000/admin |
-| API gateway | http://localhost:8080/api |
+`FLAG{64-character-hex-string}`
 
-## Credentials
+Flags are generated per deployment and rotate on reset.
 
-```bash
-docker logs lamba-secret-init
-```
+## Rules
 
-## Architecture
+- Black-box only. Do not use source code, Docker, database, or internal ports.
+- Only target the provided environment.
+- Report broken challenges or issues with endpoint + request details (no flags).
 
-12 microservices behind an API gateway, PostgreSQL, MinIO, Kafka, Keycloak.
-
-## Challenges
-
-15 intentional vulnerabilities. Student-facing descriptions live in `CHALLENGES.md`
-(distribute it out-of-band; it is not served by the platform).
-
-## Verification
-
-Black-box E2E suite (instructor use) — exploits every challenge through the
-public gateway and validates flags, account isolation, and flag-leak hygiene:
+## Start / Stop
 
 ```bash
-make test        # or: bash scripts/e2e-ctf-test.sh
+make up
+make down
+make reset   # full clean reset (new flags)
 ```
 
-Requires `curl`, `jq`, `python3` (stdlib only). Exits non-zero if any check fails.
-See `audit/FINAL_BLACKBOX_AUDIT.md` for the latest release assessment.
+## Reporting Issues
 
-## Disclaimer
-
-This platform contains intentional security vulnerabilities for educational purposes.  
-Do not deploy to production. Do not expose to the internet. Run locally only.
+Report broken challenges with endpoint, method, and sanitized request/response (no actual flags).
